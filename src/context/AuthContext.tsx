@@ -49,7 +49,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err) {
       console.error('Auth check error:', err);
-      // Auto fallback to Admin for seamless demo experience
       await switchUser('ADMIN');
     } finally {
       setLoading(false);
@@ -87,11 +86,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const switchUser = async (role: string) => {
     const roleCredentials: Record<string, { email: string; pass: string }> = {
-      ADMIN: { email: 'admin@apexerp.com', pass: 'admin123' },
-      MANAGER: { email: 'sarah.manager@apexerp.com', pass: 'manager123' },
-      CASHIER: { email: 'alex.cashier@apexerp.com', pass: 'cashier123' },
-      SALES_REP: { email: 'marcus.sales@apexerp.com', pass: 'sales123' },
-      INVENTORY_CLERK: { email: 'elena.stock@apexerp.com', pass: 'stock123' },
+      ADMIN: { email: 'admin@sanafresh.com', pass: 'admin123' },
+      MANAGER: { email: 'sarah.manager@sanafresh.com', pass: 'manager123' },
+      CASHIER: { email: 'alex.cashier@sanafresh.com', pass: 'cashier123' },
+      SALES_REP: { email: 'marcus.sales@sanafresh.com', pass: 'sales123' },
+      INVENTORY_CLERK: { email: 'elena.stock@sanafresh.com', pass: 'stock123' },
     };
 
     const target = roleCredentials[role] || roleCredentials.ADMIN;

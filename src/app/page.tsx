@@ -83,11 +83,16 @@ export default function DashboardPage() {
       {/* ================= PAGE HEADER & QUICK ACTIONS ================= */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-5">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Omnichannel Overview
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              SANA FRESH Operations
+            </h1>
+            <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200">
+              Live Hub
+            </span>
+          </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Real-time synchronization between Wholesale B2B and Retail POS operations.
+            Real-time synchronization across Farm Produce Wholesale B2B, Retail POS & Cold Storage.
           </p>
         </div>
 

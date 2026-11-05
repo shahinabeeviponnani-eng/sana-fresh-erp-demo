@@ -164,11 +164,11 @@ export default function ProductsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Product & Category Catalog
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            SANA FRESH Products & Produce
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Maintain omnichannel inventory SKUs, barcodes, and dual Wholesale/Retail pricing tiers.
+            Maintain organic produce, dairy, fruits, SKU barcodes, and dual Wholesale & Retail pricing.
           </p>
         </div>
 

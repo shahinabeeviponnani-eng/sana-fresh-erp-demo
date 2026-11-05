@@ -1,10 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#10b981" />
-      <stop offset="100%" stop-color="#6366f1" />
+    <radialGradient id="bgGlow" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#142142" />
+      <stop offset="100%" stop-color="#0b1329" />
+    </radialGradient>
+    <linearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80" />
+      <stop offset="50%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="goldAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="100%" stop-color="#84cc16" />
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="128" fill="url(#grad)" />
-  <path d="M256 120 L380 380 L320 380 L256 240 L192 380 L132 380 Z" fill="#ffffff" />
+  <!-- Dark Blue Background with Rounded Corners -->
+  <rect width="512" height="512" rx="120" fill="url(#bgGlow)" stroke="#1e293b" stroke-width="8" />
+  
+  <!-- Subtle Dark Blue Pattern Dots -->
+  <g fill="#1e293b" opacity="0.6">
+    <circle cx="80" cy="80" r="4" /><circle cx="160" cy="80" r="4" /><circle cx="240" cy="80" r="4" /><circle cx="320" cy="80" r="4" /><circle cx="400" cy="80" r="4" />
+    <circle cx="80" cy="160" r="4" /><circle cx="400" cy="160" r="4" />
+    <circle cx="80" cy="360" r="4" /><circle cx="400" cy="360" r="4" />
+    <circle cx="80" cy="440" r="4" /><circle cx="160" cy="440" r="4" /><circle cx="240" cy="440" r="4" /><circle cx="320" cy="440" r="4" /><circle cx="400" cy="440" r="4" />
+  </g>
+
+  <!-- Stylized "S" Leaf Motif for SANA FRESH -->
+  <path d="M 330 130 C 230 100, 160 170, 180 260 C 190 305, 230 330, 280 340 C 330 350, 350 380, 335 410 C 315 440, 260 445, 210 425 C 195 419, 185 407, 180 395" 
+        fill="none" stroke="url(#leafGrad)" stroke-width="44" stroke-linecap="round" stroke-linejoin="round" />
+  
+  <!-- Fresh Organic Sprout / Leaf on Top -->
+  <path d="M 330 130 C 390 120, 420 170, 390 220 C 350 210, 320 170, 330 130 Z" fill="url(#leafGrad)" />
+  <circle cx="390" cy="150" r="14" fill="url(#goldAccent)" />
 </svg>

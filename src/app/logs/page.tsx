@@ -59,15 +59,15 @@ export default function LogsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Event & Security Audit Logs
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              SANA FRESH Security & Audit Logs
             </h1>
-            <span className="bg-slate-900 text-white text-xs font-mono font-bold px-2.5 py-0.5 rounded-full">
-              PostgreSQL Immutability
+            <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 text-xs font-mono font-bold px-2.5 py-0.5 rounded-full">
+              PostgreSQL Ledger
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Complete compliance trail capturing user logins, price revisions, sales, stock adjustments and role modifications.
+            Complete compliance trail capturing user logins, POS checkouts, cold chain movements, and wholesale contracts.
           </p>
         </div>
 

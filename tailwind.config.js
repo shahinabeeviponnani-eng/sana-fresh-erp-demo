@@ -10,7 +10,16 @@ module.exports = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
-        primary: {
+        // Dark Blue Palette
+        navy: {
+          800: '#1e293b',
+          850: '#141e33',
+          900: '#0f172a',
+          950: '#090e1a',
+          pattern: '#0b1329',
+        },
+        // Fresh Green Palette
+        fresh: {
           50: '#f0fdf4',
           100: '#dcfce7',
           200: '#bbf7d0',
@@ -23,22 +32,13 @@ module.exports = {
           900: '#14532d',
           950: '#052e16',
         },
-        brand: {
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
-        }
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
+      backgroundImage: {
+        'navy-pattern': "radial-gradient(#1e293b 1px, transparent 1px), radial-gradient(#1e293b 1px, #0b1329 1px)",
+        'mesh-pattern': "linear-gradient(to right, rgba(16, 185, 129, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(16, 185, 129, 0.05) 1px, transparent 1px)",
       }
     },
   },

@@ -1,11 +1,11 @@
 {
-  "name": "ApexERP Omnichannel Enterprise",
-  "short_name": "ApexERP",
-  "description": "Enterprise ERP for Wholesale B2B, Retail POS & Warehouse Management",
+  "name": "SANA FRESH Omnichannel ERP",
+  "short_name": "Sana Fresh",
+  "description": "SANA FRESH Enterprise ERP for Wholesale & Retail POS",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#0b1329",
+  "theme_color": "#10b981",
   "icons": [
     {
       "src": "/icon.svg",

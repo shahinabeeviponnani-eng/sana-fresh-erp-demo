@@ -126,15 +126,15 @@ export default function InventoryPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Inventory & Stock Management
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              SANA FRESH Cold Chain & Stock
             </h1>
-            <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full">
-              PostgreSQL Ledger
+            <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-200">
+              Live Warehouse Ledger
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Real-time warehouse tracking, low-stock alerts, valuation and audit trail movements.
+            Real-time perishable stock tracking, cold storage audits, and automated replenishment alerts.
           </p>
         </div>
 

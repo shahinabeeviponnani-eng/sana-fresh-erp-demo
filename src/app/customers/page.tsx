@@ -93,11 +93,11 @@ export default function CustomersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Customer Base & Corporate Accounts
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            SANA FRESH Customer Accounts & CRM
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Segmented relationship manager for Wholesale Distributors, B2B Clients, and Retail Shoppers.
+            Corporate Wholesale Supermarket Accounts, Hospitality B2B, and Retail Shopper Club.
           </p>
         </div>
 

@@ -69,11 +69,11 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Financial & Omnichannel Reporting
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            SANA FRESH Financial & P&L Reports
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Real-time Profit & Loss breakdown, wholesale margins, and inventory velocities.
+            Real-time Gross Profit margins, Wholesale contracts vs Retail POS revenue, and receivables.
           </p>
         </div>
 

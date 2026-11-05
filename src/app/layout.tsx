@@ -4,13 +4,17 @@ import { AuthProvider } from '@/context/AuthContext';
 import AppLayout from '@/components/layout/AppLayout';
 
 export const metadata: Metadata = {
-  title: 'ApexERP - Omnichannel Enterprise Platform',
-  description: 'Enterprise ERP for Wholesale, Retail POS, Inventory & Finance with PostgreSQL',
+  title: 'SANA FRESH - Omnichannel ERP (Wholesale & Retail)',
+  description: 'SANA FRESH Enterprise ERP for Wholesale B2B, Retail POS, Stock & Cold Chain Management',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
-    title: 'ApexERP',
+    statusBarStyle: 'black-translucent',
+    title: 'Sana Fresh',
   },
 };
 
@@ -19,7 +23,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0f172a',
+  themeColor: '#0b1329',
 };
 
 export default function RootLayout({

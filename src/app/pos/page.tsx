@@ -651,11 +651,11 @@ export default function POSPage() {
             {/* Thermal Slip Preview */}
             <div className="p-5 font-mono text-xs text-slate-800 space-y-3 bg-slate-50">
               <div className="text-center border-b border-dashed border-slate-300 pb-3">
-                <div className="font-extrabold text-sm text-slate-900">APEX ENTERPRISE ERP</div>
-                <div className="text-[10px] text-slate-500">STORE #01 - MAIN OUTLET</div>
-                <div className="text-[10px] text-slate-500">GST/TAX ID: US-992817293</div>
-                <div className="text-[10px] text-slate-600 mt-1 font-bold">
-                  {completedOrder.orderNumber}
+                <div className="font-black text-base text-emerald-800 tracking-tight">SANA FRESH</div>
+                <div className="text-[10px] text-slate-500 font-bold">FARM PRODUCE & ORGANIC GROCERIES</div>
+                <div className="text-[10px] text-slate-500">CENTRAL HUB & OUTLET #01 • GST/TAX ID: SF-8921104</div>
+                <div className="text-[10px] text-slate-700 mt-1 font-bold font-mono">
+                  RECEIPT: {completedOrder.orderNumber}
                 </div>
               </div>
 
@@ -700,8 +700,8 @@ export default function POSPage() {
 
               <div className="text-center text-[10px] text-slate-400 pt-1">
                 Cashier: {completedOrder.cashierName} • {new Date().toLocaleString()}
-                <div className="mt-1 font-sans text-[11px] text-emerald-700 font-semibold">
-                  Thank you for shopping with ApexERP!
+                <div className="mt-1 font-sans text-[11px] text-emerald-700 font-bold">
+                  Thank you for shopping fresh at SANA FRESH!
                 </div>
               </div>
             </div>

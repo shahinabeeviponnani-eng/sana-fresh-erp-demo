@@ -7,7 +7,7 @@ const pool = new Pool({ connectionString: databaseUrl });
 async function seed() {
   const client = await pool.connect();
   try {
-    console.log('Seeding ApexERP database...');
+    console.log('Seeding SANA FRESH ERP database...');
 
     // 1. Clear existing seed data safely
     await client.query('BEGIN');
@@ -24,28 +24,28 @@ async function seed() {
     const salesHash = await bcrypt.hash('sales123', salt);
     const stockHash = await bcrypt.hash('stock123', salt);
 
-    // 3. Insert Users / Staff
+    // 3. Insert Users / Staff (@sanafresh.com)
     const userResult = await client.query(`
       INSERT INTO users (email, name, password_hash, pin_code, role, phone, status)
       VALUES 
-        ('admin@apexerp.com', 'Alexander Vance (Super Admin)', $1, '1122', 'ADMIN', '+1 (555) 019-2834', 'ACTIVE'),
-        ('sarah.manager@apexerp.com', 'Sarah Jenkins (Operations Mgr)', $2, '3344', 'MANAGER', '+1 (555) 019-8765', 'ACTIVE'),
-        ('alex.cashier@apexerp.com', 'Alex Rivera (Front Cashier)', $3, '1234', 'CASHIER', '+1 (555) 019-4455', 'ACTIVE'),
-        ('marcus.sales@apexerp.com', 'Marcus Cole (Wholesale Rep)', $4, '5566', 'SALES_REP', '+1 (555) 019-7711', 'ACTIVE'),
-        ('elena.stock@apexerp.com', 'Elena Rostova (Inventory Lead)', $5, '7788', 'INVENTORY_CLERK', '+1 (555) 019-9922', 'ACTIVE')
+        ('admin@sanafresh.com', 'Alexander Vance (Super Admin)', $1, '1122', 'ADMIN', '+1 (555) 019-2834', 'ACTIVE'),
+        ('sarah.manager@sanafresh.com', 'Sarah Jenkins (Operations Mgr)', $2, '3344', 'MANAGER', '+1 (555) 019-8765', 'ACTIVE'),
+        ('alex.cashier@sanafresh.com', 'Alex Rivera (Front Cashier)', $3, '1234', 'CASHIER', '+1 (555) 019-4455', 'ACTIVE'),
+        ('marcus.sales@sanafresh.com', 'Marcus Cole (Wholesale Rep)', $4, '5566', 'SALES_REP', '+1 (555) 019-7711', 'ACTIVE'),
+        ('elena.stock@sanafresh.com', 'Elena Rostova (Cold Chain Lead)', $5, '7788', 'INVENTORY_CLERK', '+1 (555) 019-9922', 'ACTIVE')
       RETURNING id, name, role;
     `, [adminHash, managerHash, cashierHash, salesHash, stockHash]);
-    console.log(`Created ${userResult.rowCount} Staff members.`);
+    console.log(`Created ${userResult.rowCount} SANA FRESH Staff members.`);
 
     // 4. Insert Categories
     const catResult = await client.query(`
       INSERT INTO categories (name, code, description)
       VALUES 
-        ('Electronics & Gadgets', 'ELEC', 'Consumer electronics, accessories, smart devices and peripherals'),
-        ('Industrial & Hardware', 'IND', 'Tools, industrial components, fasteners, packaging supplies'),
-        ('Apparel & Workwear', 'APP', 'Corporate uniforms, high-vis workwear, bulk textiles'),
-        ('FMCG & Beverages', 'FMCG', 'Fast moving packaged food, bulk drinks and pantry supplies'),
-        ('Office Essentials', 'OFF', 'Stationery, paper rolls, printing supplies, desk equipment')
+        ('Fresh Fruits & Berries', 'FRUIT', 'Organic orchard fruits, seasonal berries, citrus and tropicals'),
+        ('Farm Fresh Vegetables', 'VEG', 'Locally harvested organic vegetables, greens and hydroponics'),
+        ('Organic Dairy & Cold Chain', 'DAIRY', 'Pasture-raised milk, farm butter, artisanal cheeses, yogurts'),
+        ('Fresh Juices & Beverages', 'BEV', 'Cold-pressed raw juices, kombucha, smoothies and coconut waters'),
+        ('Bakery & Pantry Organics', 'PANTRY', 'Artisan sourdough, ancient grains, cold-pressed oils, pure honey')
       RETURNING id, name, code;
     `);
     const catMap = {};
@@ -54,32 +54,32 @@ async function seed() {
 
     // 5. Insert Products (Retail & Wholesale Pricing, Barcodes, Stock Levels)
     const productData = [
-      // Electronics
-      { sku: 'ELEC-LOG-MX3', barcode: '890123456701', name: 'Logitech MX Master 3S Wireless Mouse', category: 'ELEC', cost: 65.00, retail: 99.99, wholesale: 78.00, min_whl: 10, stock: 145, reorder: 20, unit: 'pcs' },
-      { sku: 'ELEC-ANC-700', barcode: '890123456702', name: 'Bose 700 Wireless ANC Headphones', category: 'ELEC', cost: 195.00, retail: 299.00, wholesale: 235.00, min_whl: 5, stock: 42, reorder: 10, unit: 'pcs' },
-      { sku: 'ELEC-USB-C100', barcode: '890123456703', name: 'Braided 100W USB-C 2M Fast Cable', category: 'ELEC', cost: 3.50, retail: 14.99, wholesale: 6.50, min_whl: 50, stock: 520, reorder: 100, unit: 'pcs' },
-      { sku: 'ELEC-GAN-65W', barcode: '890123456704', name: 'Dual Port GaN 65W Compact Fast Charger', category: 'ELEC', cost: 11.20, retail: 29.99, wholesale: 16.50, min_whl: 25, stock: 210, reorder: 35, unit: 'pcs' },
-      
-      // Industrial
-      { sku: 'IND-TAPE-HVY', barcode: '890123456705', name: 'Industrial Heavy-Duty Duct Tape (50m)', category: 'IND', cost: 2.10, retail: 6.50, wholesale: 3.20, min_whl: 40, stock: 380, reorder: 50, unit: 'roll' },
-      { sku: 'IND-STR-500M', barcode: '890123456706', name: 'Pallet Stretch Film Wrap 500m Roll', category: 'IND', cost: 12.00, retail: 24.50, wholesale: 16.00, min_whl: 20, stock: 85, reorder: 25, unit: 'roll' },
-      { sku: 'IND-GLV-NITR', barcode: '890123456707', name: 'Nitrile Heavy-Duty Work Gloves (Box of 100)', category: 'IND', cost: 7.50, retail: 18.00, wholesale: 11.00, min_whl: 15, stock: 16, reorder: 30, unit: 'box' }, // Low stock alert!
-      { sku: 'IND-MEAS-8M', barcode: '890123456708', name: 'Magnetic Rubberized Tape Measure 8M/26ft', category: 'IND', cost: 4.80, retail: 12.50, wholesale: 7.20, min_whl: 20, stock: 110, reorder: 20, unit: 'pcs' },
+      // Fresh Fruits
+      { sku: 'SF-FRUIT-AVO', barcode: '890200101001', name: 'Organic Hass Avocados (Grade A)', category: 'FRUIT', cost: 1.20, retail: 2.49, wholesale: 1.60, min_whl: 30, stock: 240, reorder: 40, unit: 'kg' },
+      { sku: 'SF-FRUIT-APL', barcode: '890200101002', name: 'Crisp Royal Gala Apples (Fresh Crop)', category: 'FRUIT', cost: 1.50, retail: 3.29, wholesale: 2.10, min_whl: 50, stock: 380, reorder: 50, unit: 'kg' },
+      { sku: 'SF-FRUIT-BAN', barcode: '890200101003', name: 'Premium Cavendish Bananas (Cluster)', category: 'FRUIT', cost: 0.70, retail: 1.69, wholesale: 0.99, min_whl: 50, stock: 450, reorder: 60, unit: 'kg' },
+      { sku: 'SF-FRUIT-STR', barcode: '890200101004', name: 'Farm Picked Sweet Strawberries (400g Clamshell)', category: 'FRUIT', cost: 1.80, retail: 4.20, wholesale: 2.60, min_whl: 20, stock: 18, reorder: 30, unit: 'box' }, // Low stock alert!
 
-      // Apparel
-      { sku: 'APP-POLO-BLK', barcode: '890123456709', name: 'Breathable Pique Cotton Polo Shirt - Black', category: 'APP', cost: 8.50, retail: 24.00, wholesale: 13.50, min_whl: 30, stock: 310, reorder: 40, unit: 'pcs' },
-      { sku: 'APP-VEST-HIV', barcode: '890123456710', name: 'ANSI Class 2 Reflective Safety Vest - Neon', category: 'APP', cost: 3.20, retail: 9.99, wholesale: 5.10, min_whl: 50, stock: 450, reorder: 60, unit: 'pcs' },
-      { sku: 'APP-JKT-WTR', barcode: '890123456711', name: 'All-Weather Waterproof Softshell Jacket', category: 'APP', cost: 28.00, retail: 69.99, wholesale: 42.00, min_whl: 10, stock: 95, reorder: 20, unit: 'pcs' },
+      // Vegetables
+      { sku: 'SF-VEG-SPIN', barcode: '890200101005', name: 'Hydroponic Tender Baby Spinach (250g)', category: 'VEG', cost: 0.90, retail: 2.89, wholesale: 1.45, min_whl: 25, stock: 180, reorder: 30, unit: 'pack' },
+      { sku: 'SF-VEG-TOM', barcode: '890200101006', name: 'Vine-Ripened Heirloom Tomatoes', category: 'VEG', cost: 1.10, retail: 2.80, wholesale: 1.65, min_whl: 30, stock: 290, reorder: 40, unit: 'kg' },
+      { sku: 'SF-VEG-PEP', barcode: '890200101007', name: 'Sweet Bell Peppers Trio Pack (Red/Yellow/Green)', category: 'VEG', cost: 1.40, retail: 3.49, wholesale: 2.10, min_whl: 25, stock: 140, reorder: 25, unit: 'pack' },
+      { sku: 'SF-VEG-CAR', barcode: '890200101008', name: 'Organic Sweet Bunch Carrots with Tops', category: 'VEG', cost: 0.80, retail: 2.19, wholesale: 1.25, min_whl: 30, stock: 15, reorder: 30, unit: 'bunch' }, // Low stock!
 
-      // FMCG & Beverages
-      { sku: 'FMCG-ESP-1KG', barcode: '890123456712', name: 'Premium Arabica Whole Bean Coffee 1KG Bag', category: 'FMCG', cost: 11.50, retail: 26.00, wholesale: 17.50, min_whl: 12, stock: 180, reorder: 30, unit: 'bag' },
-      { sku: 'FMCG-TEA-500', barcode: '890123456713', name: 'Organic Ceylon High-Grown Black Tea 500g', category: 'FMCG', cost: 5.20, retail: 13.50, wholesale: 8.00, min_whl: 24, stock: 140, reorder: 25, unit: 'tin' },
-      { sku: 'FMCG-WTR-24P', barcode: '890123456714', name: 'Natural Spring Mineral Water 500ml (Pack of 24)', category: 'FMCG', cost: 4.00, retail: 10.99, wholesale: 6.20, min_whl: 30, stock: 8, reorder: 40, unit: 'pack' }, // Critically Low!
+      // Dairy & Cold Chain
+      { sku: 'SF-DRY-MILK', barcode: '890200101009', name: 'Pasture-Raised Whole Milk 1L (Glass Bottle)', category: 'DAIRY', cost: 1.80, retail: 3.89, wholesale: 2.40, min_whl: 40, stock: 220, reorder: 35, unit: 'bottle' },
+      { sku: 'SF-DRY-YOG', barcode: '890200101010', name: 'Traditional Greek Probiotic Yogurt 1KG Tub', category: 'DAIRY', cost: 3.40, retail: 6.99, wholesale: 4.50, min_whl: 20, stock: 95, reorder: 20, unit: 'tub' },
+      { sku: 'SF-DRY-BUT', barcode: '890200101011', name: 'Cultured Farm Butter Salted 250g', category: 'DAIRY', cost: 2.10, retail: 4.50, wholesale: 2.90, min_whl: 30, stock: 160, reorder: 25, unit: 'block' },
+      { sku: 'SF-DRY-CHD', barcode: '890200101012', name: 'Aged Artisan Farmhouse Cheddar 300g', category: 'DAIRY', cost: 4.20, retail: 8.99, wholesale: 5.80, min_whl: 15, stock: 85, reorder: 15, unit: 'block' },
 
-      // Office
-      { sku: 'OFF-PAP-A4', barcode: '890123456715', name: 'High-Speed Copier Paper A4 80GSM (Ream 500)', category: 'OFF', cost: 3.10, retail: 7.50, wholesale: 4.40, min_whl: 40, stock: 680, reorder: 100, unit: 'ream' },
-      { sku: 'OFF-POS-80MM', barcode: '890123456716', name: 'Thermal POS Receipt Paper Rolls 80x80 (Box of 50)', category: 'OFF', cost: 22.00, retail: 49.00, wholesale: 32.00, min_whl: 10, stock: 95, reorder: 20, unit: 'box' },
-      { sku: 'OFF-PEN-BLU', barcode: '890123456717', name: 'Gel Retractable 0.7mm Ballpoint Pen (Box of 12)', category: 'OFF', cost: 4.50, retail: 11.99, wholesale: 6.80, min_whl: 20, stock: 240, reorder: 30, unit: 'box' }
+      // Beverages
+      { sku: 'SF-BEV-ORJ', barcode: '890200101013', name: 'Cold-Pressed Valencia Orange Juice 1L Bottle', category: 'BEV', cost: 2.20, retail: 4.99, wholesale: 3.10, min_whl: 24, stock: 150, reorder: 30, unit: 'bottle' },
+      { sku: 'SF-BEV-GRN', barcode: '890200101014', name: 'Supergreen Kale & Ginger Detox Smoothie 500ml', category: 'BEV', cost: 1.90, retail: 4.49, wholesale: 2.70, min_whl: 24, stock: 110, reorder: 20, unit: 'bottle' },
+      { sku: 'SF-BEV-COC', barcode: '890200101015', name: 'Pure Young Coconut Water 330ml (Pack of 12)', category: 'BEV', cost: 9.00, retail: 18.99, wholesale: 12.50, min_whl: 10, stock: 75, reorder: 15, unit: 'pack' },
+
+      // Pantry & Bakery
+      { sku: 'SF-PAN-SRD', barcode: '890200101016', name: 'Artisan Stoneground Country Sourdough Loaf', category: 'PANTRY', cost: 1.90, retail: 4.50, wholesale: 2.75, min_whl: 15, stock: 65, reorder: 15, unit: 'loaf' },
+      { sku: 'SF-PAN-HON', barcode: '890200101017', name: 'Raw Wildflower Pure Honey 500g Hex Jar', category: 'PANTRY', cost: 4.50, retail: 9.99, wholesale: 6.50, min_whl: 15, stock: 120, reorder: 20, unit: 'jar' }
     ];
 
     const prodInsertQueries = productData.map(p => {
@@ -88,40 +88,40 @@ async function seed() {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING id, sku, name, retail_price, wholesale_price, cost_price;
       `, [
-        p.sku, p.barcode, p.name, `High-demand commercial inventory item: ${p.name}`,
+        p.sku, p.barcode, p.name, `Premium SANA FRESH certified stock: ${p.name}`,
         catMap[p.category], p.cost, p.retail, p.wholesale, p.min_whl, p.stock, p.reorder, p.unit
       ]);
     });
     const insertedProducts = await Promise.all(prodInsertQueries);
     const prodList = insertedProducts.map(res => res.rows[0]);
-    console.log(`Created ${prodList.length} Products with Wholesale & Retail price tiers.`);
+    console.log(`Created ${prodList.length} SANA FRESH Products with Wholesale & Retail price tiers.`);
 
-    // 6. Insert Customers (Both Retail and Wholesale Segments)
+    // 6. Insert Customers (Wholesale B2B & Retail Shoppers)
     const custResult = await client.query(`
       INSERT INTO customers (name, company_name, type, email, phone, tax_id, address, city, credit_limit, current_balance, payment_terms, discount_percent, notes)
       VALUES 
         -- Retail Shoppers
         ('Walk-in Customer', NULL, 'RETAIL', NULL, NULL, NULL, 'Counter Storefront', 'Metropolis', 0.00, 0.00, 'IMMEDIATE', 0.00, 'Default retail guest customer'),
-        ('David Miller', NULL, 'RETAIL', 'david.miller@email.com', '+1 (555) 234-5678', NULL, '45 Elm Street, Apt 3B', 'Metropolis', 500.00, 0.00, 'IMMEDIATE', 5.00, 'VIP Loyalty Member #884'),
-        ('Sophia Chen', NULL, 'RETAIL', 'sophia.c@techmail.org', '+1 (555) 345-6789', NULL, '88 Maple Ave', 'Metropolis', 300.00, 0.00, 'IMMEDIATE', 0.00, 'Regular retail patron'),
+        ('David Miller', NULL, 'RETAIL', 'david.miller@email.com', '+1 (555) 234-5678', NULL, '45 Elm Street, Apt 3B', 'Metropolis', 500.00, 0.00, 'IMMEDIATE', 5.00, 'SANA FRESH Loyalty Club #884'),
+        ('Sophia Chen', NULL, 'RETAIL', 'sophia.c@techmail.org', '+1 (555) 345-6789', NULL, '88 Maple Ave', 'Metropolis', 300.00, 0.00, 'IMMEDIATE', 0.00, 'Organic produce retail shopper'),
         
-        -- Wholesale B2B Clients
-        ('Apex Metro Supermarkets Ltd', 'Metro Retail Group Corp', 'WHOLESALE', 'procurement@metrogroup.com', '+1 (555) 888-0101', 'TAX-US-9938210', '100 Distribution Parkway, Suite 400', 'Chicago', 50000.00, 14250.00, 'NET_30', 8.00, 'Tier 1 Wholesale Account. High volume weekly bulk orders.'),
-        ('BuildCorp Contractors & Engineering', 'BuildCorp Global LLC', 'WHOLESALE', 'supplies@buildcorp.com', '+1 (555) 777-0202', 'TAX-US-4829103', '744 Industrial Blvd', 'Dallas', 25000.00, 6800.00, 'NET_60', 5.00, 'Industrial safety gear and hardware supplies bulk contract.'),
-        ('Horizon Tech Solutions Inc', 'Horizon Technologies LLC', 'WHOLESALE', 'hardware@horizontech.io', '+1 (555) 666-0303', 'TAX-US-7193845', '120 Silicon Way', 'Austin', 15000.00, 0.00, 'NET_15', 3.00, 'IT equipment and accessories reseller partner.'),
-        ('Grand Pacific Hotel & Resorts', 'Pacific Hospitality Partners', 'WHOLESALE', 'ops@grandpacific.com', '+1 (555) 555-0404', 'TAX-US-1029482', '200 Ocean Promenade', 'Miami', 30000.00, 8900.00, 'NET_30', 6.00, 'Hospitality linens, coffee, tea, and guest amenities.')
+        -- Wholesale B2B Corporate Clients
+        ('GreenLeaf Supermarkets Group', 'GreenLeaf Retail Corp', 'WHOLESALE', 'procurement@greenleaf.com', '+1 (555) 888-0101', 'TAX-SF-9938210', '100 Distribution Parkway, Suite 400', 'Chicago', 60000.00, 18450.00, 'NET_30', 8.00, 'Tier 1 Wholesale Account. 15 supermarket stores daily produce supply.'),
+        ('Grand Hyatt Culinary & Banquets', 'Hyatt Hospitality Partners', 'WHOLESALE', 'chef.procurement@hyatt.com', '+1 (555) 777-0202', 'TAX-SF-4829103', '744 Boulevard Promenade', 'Dallas', 35000.00, 8200.00, 'NET_30', 5.00, 'Daily fresh berries, microgreens, dairy and artisan bread contract.'),
+        ('FreshBite Healthy Cafes Network', 'FreshBite Brands LLC', 'WHOLESALE', 'supplies@freshbite.io', '+1 (555) 666-0303', 'TAX-SF-7193845', '120 Silicon Way', 'Austin', 20000.00, 0.00, 'NET_15', 3.00, 'Avocados, citrus and cold pressed juices daily supply.'),
+        ('Metro City Healthcare Catering', 'Metro Hospital System Corp', 'WHOLESALE', 'nutrition@metrohealth.org', '+1 (555) 555-0404', 'TAX-SF-1029482', '200 Medical Center Drive', 'Miami', 40000.00, 11500.00, 'NET_60', 6.00, 'Fresh organic fruits and pasteurized milk daily bulk supply.')
       RETURNING id, name, company_name, type;
     `);
     const custList = custResult.rows;
     console.log(`Created ${custList.length} Customers across Wholesale and Retail divisions.`);
 
-    // 7. Insert Vendors
+    // 7. Insert Vendors (Organic Farms & Creameries)
     const vendorResult = await client.query(`
       INSERT INTO vendors (name, company_name, contact_person, email, phone, tax_id, address, payment_terms, bank_details, total_purchases)
       VALUES 
-        ('Global Tech Logistics', 'Global Tech Imports LLC', 'Robert Hansen', 'accounts@globaltechlogistics.com', '+1 (555) 444-1111', 'VEND-US-89211', '12 Port Terminal Rd, Seattle, WA', 'NET_30', 'Chase Bank NA - Acc: 992817293', 84500.00),
-        ('Vanguard Industrial Supplies', 'Vanguard Manufacturing Corp', 'Rachel Green', 'orders@vanguardind.com', '+1 (555) 444-2222', 'VEND-US-33491', '808 Foundry Road, Cleveland, OH', 'NET_30', 'Bank of America - Acc: 448102931', 46200.00),
-        ('Apex Plantation Direct', 'Apex Agro Exporters Ltd', 'Carlos Mendez', 'supply@apexplantation.com', '+1 (555) 444-3333', 'VEND-US-66102', '55 Rainforest Drive, San Jose, CA', 'NET_15', 'Wells Fargo - Acc: 110293847', 29800.00)
+        ('Valley View Organic Orchards', 'Valley View Agricultural Farms LLC', 'Robert Hansen', 'accounts@valleyviewfarms.com', '+1 (555) 444-1111', 'VEND-SF-89211', '12 Orchard Valley Rd, Yakima, WA', 'NET_30', 'Chase Bank NA - Acc: 992817293', 92500.00),
+        ('GreenMeadow Dairy & Creamery', 'GreenMeadow Pastures Corp', 'Rachel Green', 'orders@greenmeadowdairy.com', '+1 (555) 444-2222', 'VEND-SF-33491', '808 Pasture Road, Madison, WI', 'NET_30', 'Bank of America - Acc: 448102931', 54200.00),
+        ('Highland Hydroponic Farms Ltd', 'Highland Hydroponics Group', 'Carlos Mendez', 'supply@highlandfarms.com', '+1 (555) 444-3333', 'VEND-SF-66102', '55 Greenhouse Drive, Salinas, CA', 'NET_15', 'Wells Fargo - Acc: 110293847', 36800.00)
       RETURNING id, name, company_name;
     `);
     const vendorList = vendorResult.rows;
@@ -131,11 +131,11 @@ async function seed() {
     for (const prod of prodList) {
       await client.query(`
         INSERT INTO stock_movements (product_id, type, quantity, previous_stock, new_stock, reference_id, staff_id, reason)
-        VALUES ($1, 'PURCHASE_RECEIVE', 100, 0, 100, 'INIT-STOCK-2026', 1, 'Initial opening stock intake verified')
+        VALUES ($1, 'PURCHASE_RECEIVE', 150, 0, 150, 'INIT-SF-2026', 1, 'Initial SANA FRESH cold chain intake verified')
       `, [prod.id]);
     }
 
-    // 9. Insert Historical Orders (Retail POS & Wholesale B2B)
+    // 9. Historical Sales Orders (Retail POS & Wholesale B2B)
     const adminId = 1;
     const cashierId = 3;
     const salesRepId = 4;
@@ -148,8 +148,8 @@ async function seed() {
         staff: cashierId,
         paymentMethod: 'CASH',
         items: [
-          { prod: prodList[0], qty: 1, price: 99.99, cost: 65.00 },
-          { prod: prodList[2], qty: 2, price: 14.99, cost: 3.50 }
+          { prod: prodList[0], qty: 2, price: 2.49, cost: 1.20 }, // Avocados
+          { prod: prodList[8], qty: 2, price: 3.89, cost: 1.80 }  // Milk
         ]
       },
       {
@@ -158,8 +158,8 @@ async function seed() {
         staff: cashierId,
         paymentMethod: 'CARD',
         items: [
-          { prod: prodList[11], qty: 2, price: 26.00, cost: 11.50 },
-          { prod: prodList[12], qty: 1, price: 13.50, cost: 5.20 }
+          { prod: prodList[1], qty: 3, price: 3.29, cost: 1.50 }, // Apples
+          { prod: prodList[12], qty: 1, price: 4.99, cost: 2.20 } // Orange Juice
         ]
       },
       {
@@ -168,8 +168,8 @@ async function seed() {
         staff: cashierId,
         paymentMethod: 'UPI',
         items: [
-          { prod: prodList[3], qty: 1, price: 29.99, cost: 11.20 },
-          { prod: prodList[8], qty: 2, price: 24.00, cost: 8.50 }
+          { prod: prodList[4], qty: 2, price: 2.89, cost: 0.90 }, // Spinach
+          { prod: prodList[15], qty: 1, price: 4.50, cost: 1.90 } // Sourdough
         ]
       }
     ];
@@ -193,10 +193,9 @@ async function seed() {
           VALUES ($1, $2, $3, $4, 'pcs', $5, $6, $7, 0, $8)
         `, [orderId, item.prod.id, item.prod.name, item.prod.sku, item.cost, item.price, item.qty, itemTot]);
 
-        // Stock movement
         await client.query(`
           INSERT INTO stock_movements (product_id, type, quantity, previous_stock, new_stock, reference_id, staff_id, reason)
-          VALUES ($1, 'RETAIL_SALE', $2, 100, 100 + $2, $3, $4, 'Retail Store POS checkout')
+          VALUES ($1, 'RETAIL_SALE', $2, 100, 100 + $2, $3, $4, 'SANA FRESH Retail Store Checkout')
         `, [item.prod.id, -item.qty, ro.orderNum, ro.staff]);
       }
     }
@@ -205,41 +204,41 @@ async function seed() {
     const wholesaleOrders = [
       {
         orderNum: 'WHL-2026-5001',
-        customer: custList[3].id, // Metro Supermarkets
+        customer: custList[3].id, // GreenLeaf Supermarkets
         staff: salesRepId,
         paymentMethod: 'BANK_TRANSFER',
         paymentStatus: 'PARTIAL',
         paid: 8000.00,
         items: [
-          { prod: prodList[11], qty: 100, price: 17.50, cost: 11.50 }, // Coffee
-          { prod: prodList[12], qty: 150, price: 8.00, cost: 5.20 },  // Tea
-          { prod: prodList[14], qty: 200, price: 4.40, cost: 3.10 }   // Paper
+          { prod: prodList[0], qty: 200, price: 1.60, cost: 1.20 }, // Avocados
+          { prod: prodList[1], qty: 300, price: 2.10, cost: 1.50 }, // Apples
+          { prod: prodList[8], qty: 250, price: 2.40, cost: 1.80 }  // Milk
         ]
       },
       {
         orderNum: 'WHL-2026-5002',
-        customer: custList[4].id, // BuildCorp Contractors
+        customer: custList[4].id, // Grand Hyatt Hotel
         staff: salesRepId,
         paymentMethod: 'CREDIT',
         paymentStatus: 'UNPAID',
         paid: 0.00,
         items: [
-          { prod: prodList[4], qty: 80, price: 3.20, cost: 2.10 },   // Duct tape
-          { prod: prodList[5], qty: 40, price: 16.00, cost: 12.00 }, // Stretch film
-          { prod: prodList[9], qty: 100, price: 5.10, cost: 3.20 }   // Safety Vests
+          { prod: prodList[3], qty: 80, price: 2.60, cost: 1.80 },   // Strawberries
+          { prod: prodList[9], qty: 50, price: 4.50, cost: 3.40 },   // Yogurt
+          { prod: prodList[15], qty: 60, price: 2.75, cost: 1.90 }   // Sourdough
         ]
       },
       {
         orderNum: 'WHL-2026-5003',
-        customer: custList[5].id, // Horizon Tech Solutions
+        customer: custList[5].id, // FreshBite Cafes
         staff: salesRepId,
         paymentMethod: 'BANK_TRANSFER',
         paymentStatus: 'PAID',
-        paid: 6240.00,
+        paid: 4890.00,
         items: [
-          { prod: prodList[0], qty: 40, price: 78.00, cost: 65.00 }, // Mice
-          { prod: prodList[2], qty: 120, price: 6.50, cost: 3.50 },  // Cables
-          { prod: prodList[3], qty: 50, price: 16.50, cost: 11.20 }  // Chargers
+          { prod: prodList[0], qty: 100, price: 1.60, cost: 1.20 }, // Avocados
+          { prod: prodList[12], qty: 120, price: 3.10, cost: 2.20 }, // Orange juice
+          { prod: prodList[13], qty: 100, price: 2.70, cost: 1.90 }  // Green smoothie
         ]
       }
     ];
@@ -265,16 +264,16 @@ async function seed() {
 
         await client.query(`
           INSERT INTO stock_movements (product_id, type, quantity, previous_stock, new_stock, reference_id, staff_id, reason)
-          VALUES ($1, 'WHOLESALE_SALE', $2, 200, 200 + $2, $3, $4, 'B2B Wholesale bulk shipment fulfillment')
+          VALUES ($1, 'WHOLESALE_SALE', $2, 250, 250 + $2, $3, $4, 'SANA FRESH Cold Chain Wholesale Dispatch')
         `, [item.prod.id, -item.qty, wo.orderNum, wo.staff]);
       }
     }
-    console.log(`Seeded Retail and Wholesale sales orders.`);
+    console.log(`Seeded SANA FRESH Retail and Wholesale sales orders.`);
 
-    // 10. Insert Purchase Order (Restocking from Vendors)
+    // 10. Purchase Order (Restocking from Farms)
     const poRes = await client.query(`
       INSERT INTO purchase_orders (po_number, vendor_id, staff_id, status, total_amount, payment_status, expected_delivery_date, received_at, notes)
-      VALUES ('PO-2026-901', $1, $2, 'RECEIVED', 4250.00, 'PAID', CURRENT_DATE - INTERVAL '2 days', CURRENT_TIMESTAMP, 'Emergency restocking for high velocity electronics and cables.')
+      VALUES ('PO-2026-901', $1, $2, 'RECEIVED', 4850.00, 'PAID', CURRENT_DATE - INTERVAL '2 days', CURRENT_TIMESTAMP, 'Direct organic farm intake for avocados and gala apples.')
       RETURNING id;
     `, [vendorList[0].id, adminId]);
 
@@ -282,20 +281,20 @@ async function seed() {
     await client.query(`
       INSERT INTO purchase_order_items (po_id, product_id, quantity_ordered, quantity_received, unit_cost, total_cost)
       VALUES 
-        ($1, $2, 50, 50, 65.00, 3250.00),
-        ($1, $3, 200, 200, 5.00, 1000.00)
-    `, [poId, prodList[0].id, prodList[2].id]);
-    console.log(`Seeded Purchase Orders & Inbound shipments.`);
+        ($1, $2, 500, 500, 1.20, 600.00),
+        ($1, $3, 1000, 1000, 1.50, 1500.00)
+    `, [poId, prodList[0].id, prodList[1].id]);
+    console.log(`Seeded Farm Inbound Purchase Orders.`);
 
-    // 11. Insert System Audit Logs (Event logs)
+    // 11. System Event Logs
     const auditEvents = [
-      { staff_id: 1, name: 'Alexander Vance', action: 'SYSTEM_BOOT', module: 'AUTH', severity: 'INFO', details: { msg: 'ERP Server cluster initialized with PostgreSQL 16 engine' } },
-      { staff_id: 1, name: 'Alexander Vance', action: 'USER_CREATED', module: 'STAFF', severity: 'INFO', details: { user: 'marcus.sales@apexerp.com', role: 'SALES_REP' } },
-      { staff_id: 4, name: 'Marcus Cole', action: 'WHOLESALE_ORDER_CREATED', module: 'WHOLESALE', severity: 'INFO', details: { order_number: 'WHL-2026-5001', customer: 'Metro Retail Group Corp', total: 3820.00 } },
-      { staff_id: 3, name: 'Alex Rivera', action: 'POS_CHECKOUT', module: 'RETAIL', severity: 'INFO', details: { order_number: 'POS-2026-1001', payment: 'CASH', total: 140.37 } },
-      { staff_id: 5, name: 'Elena Rostova', action: 'STOCK_RESTOCKED', module: 'INVENTORY', severity: 'INFO', details: { po_number: 'PO-2026-901', items_received: 250 } },
-      { staff_id: 1, name: 'Alexander Vance', action: 'PRICE_TIER_ADJUSTED', module: 'INVENTORY', severity: 'WARNING', details: { sku: 'ELEC-LOG-MX3', old_wholesale: 82.00, new_wholesale: 78.00 } },
-      { staff_id: 4, name: 'Marcus Cole', action: 'CREDIT_LIMIT_APPROVED', module: 'CUSTOMERS', severity: 'INFO', details: { customer: 'BuildCorp Global LLC', limit: 25000.00, terms: 'NET_60' } }
+      { staff_id: 1, name: 'Alexander Vance', action: 'SYSTEM_BOOT', module: 'AUTH', severity: 'INFO', details: { msg: 'SANA FRESH Omnichannel ERP Engine Online' } },
+      { staff_id: 1, name: 'Alexander Vance', action: 'USER_CREATED', module: 'STAFF', severity: 'INFO', details: { user: 'marcus.sales@sanafresh.com', role: 'SALES_REP' } },
+      { staff_id: 4, name: 'Marcus Cole', action: 'WHOLESALE_ORDER_CREATED', module: 'WHOLESALE', severity: 'INFO', details: { order_number: 'WHL-2026-5001', customer: 'GreenLeaf Retail Corp', total: 1627.50 } },
+      { staff_id: 3, name: 'Alex Rivera', action: 'POS_CHECKOUT', module: 'RETAIL', severity: 'INFO', details: { order_number: 'POS-2026-1001', payment: 'CASH', total: 13.82 } },
+      { staff_id: 5, name: 'Elena Rostova', action: 'COLD_CHAIN_INTAKE', module: 'INVENTORY', severity: 'INFO', details: { po_number: 'PO-2026-901', items_received: 1500 } },
+      { staff_id: 1, name: 'Alexander Vance', action: 'PRICE_TIER_ADJUSTED', module: 'INVENTORY', severity: 'WARNING', details: { sku: 'SF-FRUIT-AVO', old_wholesale: 1.70, new_wholesale: 1.60 } },
+      { staff_id: 4, name: 'Marcus Cole', action: 'CREDIT_LIMIT_APPROVED', module: 'CUSTOMERS', severity: 'INFO', details: { customer: 'GreenLeaf Retail Corp', limit: 60000.00, terms: 'NET_30' } }
     ];
 
     for (const evt of auditEvents) {
@@ -304,10 +303,10 @@ async function seed() {
         VALUES ($1, $2, $3, $4, $5, $6, '127.0.0.1')
       `, [evt.staff_id, evt.name, evt.action, evt.module, evt.severity, JSON.stringify(evt.details)]);
     }
-    console.log(`Seeded System Event & Audit Logs.`);
+    console.log(`Seeded SANA FRESH System Event & Audit Logs.`);
 
     await client.query('COMMIT');
-    console.log('✓ ApexERP Database seeded successfully with enterprise data!');
+    console.log('✓ SANA FRESH ERP Database seeded successfully with fresh produce & organic goods data!');
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Failed to seed database:', err);
