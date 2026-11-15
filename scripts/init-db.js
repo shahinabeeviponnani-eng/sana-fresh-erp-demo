@@ -2,9 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
 
-const databaseUrl = process.env.DATABASE_URL || 'postgres://apple@localhost:5432/erp_db';
+const databaseUrl = process.env.DATABASE_URL || 'postgres://postgres:soundofheart@localhost:5432/erp_db';
 
-console.log('Connecting to PostgreSQL at:', databaseUrl);
+console.log('Connecting to PostgreSQL at:', databaseUrl.replace(/:[^:@]+@/, ':***@'));
 
 const pool = new Pool({
   connectionString: databaseUrl,
@@ -18,7 +18,7 @@ async function run() {
     
     console.log('Executing database schema migrations...');
     await client.query(schemaSql);
-    console.log('✓ ApexERP Database Schema initialized successfully!');
+    console.log('✓ SANA FRESH ERP Database Schema initialized successfully!');
   } catch (err) {
     console.error('Error initializing schema:', err);
     process.exit(1);

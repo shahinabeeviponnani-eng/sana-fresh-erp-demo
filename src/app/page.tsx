@@ -41,14 +41,10 @@ export default function DashboardPage() {
   const fetchDashboard = async () => {
     try {
       setLoading(true);
-      const [dashRes, repRes] = await Promise.all([
-        fetch('/api/dashboard'),
-        fetch('/api/reports'),
-      ]);
-      const dashData = await dashRes.json();
-      const repData = await repRes.json();
+      const res = await fetch('/api/dashboard');
+      const dashData = await res.json();
       setData(dashData);
-      setReports(repData);
+      setReports(dashData);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
     } finally {
@@ -161,7 +157,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-2 text-2xl font-black text-slate-900">
-            ${metrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            £{metrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="mt-3 flex items-center gap-2 text-xs text-slate-600">
             <span className="inline-flex items-center text-emerald-600 font-semibold gap-0.5">
@@ -180,7 +176,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-2 text-2xl font-black text-indigo-900">
-            ${metrics.wholesaleRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            £{metrics.wholesaleRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
             <span>{metrics.wholesaleCustomers} Active B2B Accounts</span>
@@ -199,7 +195,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-2 text-2xl font-black text-emerald-900">
-            ${metrics.retailRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            £{metrics.retailRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
             <span>{metrics.retailCustomers} Retail Shoppers</span>
@@ -218,7 +214,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-2 text-2xl font-black text-amber-900">
-            ${metrics.outstandingReceivables.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            £{metrics.outstandingReceivables.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
             <span>Net 15/30/60 Terms</span>
@@ -232,7 +228,7 @@ export default function DashboardPage() {
         <div className="p-2 border-r border-slate-800 last:border-0">
           <div className="text-[11px] font-semibold text-slate-400 uppercase">Inventory Value (Cost)</div>
           <div className="text-lg font-bold text-slate-100 mt-1">
-            ${metrics.inventoryValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            £{metrics.inventoryValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-[10px] text-emerald-400 mt-0.5">{metrics.totalUnitsInStock} total units in warehouse</div>
         </div>
@@ -246,7 +242,7 @@ export default function DashboardPage() {
         <div className="p-2 border-r border-slate-800 last:border-0">
           <div className="text-[11px] font-semibold text-slate-400 uppercase">Credit Extended</div>
           <div className="text-lg font-bold text-slate-100 mt-1">
-            ${metrics.totalCreditExtended.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            £{metrics.totalCreditExtended.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div className="text-[10px] text-indigo-300 mt-0.5">To authorized B2B buyers</div>
         </div>
@@ -293,9 +289,9 @@ export default function DashboardPage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="date_label" stroke="#64748b" fontSize={11} tickLine={false} />
-                  <YAxis stroke="#64748b" fontSize={11} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                  <YAxis stroke="#64748b" fontSize={11} tickLine={false} tickFormatter={(v) => `£${v}`} />
                   <Tooltip
-                    formatter={(val: any) => [`$${Number(val).toLocaleString()}`, '']}
+                    formatter={(val: any) => [`£${Number(val).toLocaleString()}`, '']}
                     contentStyle={{ backgroundColor: '#0f172a', color: '#fff', borderRadius: '8px', border: 'none', fontSize: '12px' }}
                   />
                   <Area type="monotone" dataKey="wholesale_sales" name="Wholesale" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#whlGrad)" />
@@ -345,13 +341,13 @@ export default function DashboardPage() {
             <div className="text-center p-2 rounded-lg bg-emerald-50">
               <div className="text-[11px] font-medium text-emerald-800">Retail POS</div>
               <div className="text-sm font-bold text-emerald-900 mt-0.5">
-                ${metrics.retailRevenue.toLocaleString()}
+                £{metrics.retailRevenue.toLocaleString()}
               </div>
             </div>
             <div className="text-center p-2 rounded-lg bg-indigo-50">
               <div className="text-[11px] font-medium text-indigo-800">Wholesale B2B</div>
               <div className="text-sm font-bold text-indigo-900 mt-0.5">
-                ${metrics.wholesaleRevenue.toLocaleString()}
+                £{metrics.wholesaleRevenue.toLocaleString()}
               </div>
             </div>
           </div>
@@ -411,7 +407,7 @@ export default function DashboardPage() {
                       )}
                     </td>
                     <td className="py-3 px-3 font-semibold text-slate-900">
-                      ${Number(ord.total_amount).toFixed(2)}
+                      £{Number(ord.total_amount).toFixed(2)}
                     </td>
                     <td className="py-3 px-3">
                       <span

@@ -1,15 +1,17 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import { checkUserPermission } from '@/lib/permissions';
 
 export interface User {
   id: number;
   email: string;
   name: string;
-  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'SALES_REP' | 'INVENTORY_CLERK' | 'ACCOUNTANT';
+  role: 'ADMIN' | 'MANAGER' | 'CASHIER' | 'SALES_REP' | 'INVENTORY_CLERK' | 'ACCOUNTANT' | string;
   phone?: string;
   status: string;
+  permissions: string[];
 }
 
 interface AuthContextType {
@@ -17,7 +19,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password?: string, pin?: string) => Promise<boolean>;
   logout: () => Promise<void>;
-  switchUser: (role: string) => Promise<boolean>;
+  hasPermission: (permissionKey: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -25,13 +27,18 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   login: async () => false,
   logout: async () => {},
-  switchUser: async () => false,
+  hasPermission: () => false,
 });
 
+// Module-level cache — survives re-renders, cleared on logout
+let cachedUser: User | null = null;
+let sessionChecked = false;
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(cachedUser);
+  const [loading, setLoading] = useState(!sessionChecked);
   const router = useRouter();
+  const pathname = usePathname();
 
   const fetchCurrentUser = async () => {
     try {
@@ -39,24 +46,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.ok) {
         const data = await res.json();
         if (data.authenticated && data.user) {
+          cachedUser = data.user;
+          sessionChecked = true;
           setUser(data.user);
         } else {
+          cachedUser = null;
+          sessionChecked = true;
           setUser(null);
+          if (pathname !== '/login') router.replace('/login');
         }
       } else {
-        // Auto default to Admin for demo convenience if no cookie yet
-        await switchUser('ADMIN');
+        cachedUser = null;
+        sessionChecked = true;
+        setUser(null);
+        if (pathname !== '/login') router.replace('/login');
       }
-    } catch (err) {
-      console.error('Auth check error:', err);
-      await switchUser('ADMIN');
+    } catch {
+      cachedUser = null;
+      sessionChecked = true;
+      setUser(null);
+      if (pathname !== '/login') router.replace('/login');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCurrentUser();
+    if (!sessionChecked) fetchCurrentUser();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = async (email: string, password?: string, pin?: string) => {
@@ -68,6 +85,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       const data = await res.json();
       if (res.ok && data.success) {
+        cachedUser = data.user;
+        sessionChecked = true;
         setUser(data.user);
         return true;
       }
@@ -80,25 +99,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     await fetch('/api/auth/me', { method: 'POST' });
+    cachedUser = null;
+    sessionChecked = false;
     setUser(null);
     router.push('/login');
   };
 
-  const switchUser = async (role: string) => {
-    const roleCredentials: Record<string, { email: string; pass: string }> = {
-      ADMIN: { email: 'admin@sanafresh.com', pass: 'admin123' },
-      MANAGER: { email: 'sarah.manager@sanafresh.com', pass: 'manager123' },
-      CASHIER: { email: 'alex.cashier@sanafresh.com', pass: 'cashier123' },
-      SALES_REP: { email: 'marcus.sales@sanafresh.com', pass: 'sales123' },
-      INVENTORY_CLERK: { email: 'elena.stock@sanafresh.com', pass: 'stock123' },
-    };
-
-    const target = roleCredentials[role] || roleCredentials.ADMIN;
-    return await login(target.email, target.pass);
+  const hasPermission = (permissionKey: string): boolean => {
+    if (!user) return false;
+    return checkUserPermission(user.role, user.permissions, permissionKey);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, switchUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        logout,
+        hasPermission,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

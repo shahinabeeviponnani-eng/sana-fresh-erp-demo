@@ -1,0 +1,17 @@
+name = "sana-fresh-erp"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sana-fresh-erp-db"
+database_id = "3bd44681-0754-45a2-a389-b9a6274d2a11"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "sana-fresh-erp-storage"
+
+[vars]
+JWT_SECRET = "0cfdaa44e9c06ed072376808b29943e549e0d0e27b759c2e369b06c71270c095"
+NODE_ENV = "production"

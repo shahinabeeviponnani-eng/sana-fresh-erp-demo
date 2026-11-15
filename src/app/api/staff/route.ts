@@ -1,16 +1,23 @@
+export const runtime = 'edge';
+
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { queryAll, queryOne, execute, insertReturningId } from '@/lib/db';
 import { hashPassword, getUserFromRequest } from '@/lib/auth';
 import { logAuditEvent } from '@/lib/audit';
+import { checkUserPermission, ROLE_DEFAULT_PERMISSIONS } from '@/lib/permissions';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const res = await query(`
-      SELECT id, email, name, role, phone, pin_code, status, created_at, updated_at
-      FROM users
-      ORDER BY id ASC;
-    `);
-    return NextResponse.json({ staff: res.rows });
+    const session = await getUserFromRequest(req);
+    if (session && !checkUserPermission(session.role, session.permissions, 'manage_staff'))
+      return NextResponse.json({ error: 'Access Denied' }, { status: 403 });
+
+    const rows = await queryAll(`SELECT id, email, name, role, phone, pin_code, status, permissions, created_at FROM users ORDER BY id ASC`);
+    const staff = rows.map(u => ({
+      ...u,
+      permissions: (() => { try { const p = JSON.parse(u.permissions || '[]'); return Array.isArray(p) && p.length > 0 ? p : ROLE_DEFAULT_PERMISSIONS[u.role] || []; } catch { return ROLE_DEFAULT_PERMISSIONS[u.role] || []; } })(),
+    }));
+    return NextResponse.json({ staff });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -18,97 +25,56 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = getUserFromRequest(req);
-    const body = await req.json();
-    const { email, name, password, pin_code, role = 'CASHIER', phone } = body;
+    const session = await getUserFromRequest(req);
+    if (session && !checkUserPermission(session.role, session.permissions, 'manage_staff'))
+      return NextResponse.json({ error: 'Access Denied' }, { status: 403 });
 
-    if (!email || !name || !password) {
-      return NextResponse.json({ error: 'Email, Name, and Password are required' }, { status: 400 });
-    }
+    const { email, name, password, pin_code, role = 'CASHIER', phone, permissions } = await req.json();
+    if (!email || !name || !password) return NextResponse.json({ error: 'Email, Name and Password are required' }, { status: 400 });
+
+    const dup = await queryOne(`SELECT id FROM users WHERE LOWER(email)=LOWER(?)`, [email.trim()]);
+    if (dup) return NextResponse.json({ error: 'A user with this email already exists' }, { status: 409 });
 
     const passwordHash = await hashPassword(password);
+    const assignedPermissions = Array.isArray(permissions) && permissions.length > 0 ? permissions : ROLE_DEFAULT_PERMISSIONS[role] || [];
 
-    const res = await query(
-      `INSERT INTO users (email, name, password_hash, pin_code, role, phone, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE')
-       RETURNING id, email, name, role, phone, pin_code, status, created_at`,
-      [email.toLowerCase().trim(), name.trim(), passwordHash, pin_code || null, role, phone || null]
+    const id = await insertReturningId(
+      `INSERT INTO users (email, name, password_hash, pin_code, role, phone, status, permissions) VALUES (?,?,?,?,?,?,'ACTIVE',?)`,
+      [email.toLowerCase().trim(), name.trim(), passwordHash, pin_code || null, role, phone || null, JSON.stringify(assignedPermissions)]
     );
-
-    const newUser = res.rows[0];
-
-    await logAuditEvent({
-      staffId: session?.id,
-      staffName: session?.name || 'Admin',
-      action: 'STAFF_MEMBER_CREATED',
-      module: 'STAFF',
-      details: { email: newUser.email, name: newUser.name, role: newUser.role },
-    });
-
+    const newUser = await queryOne(`SELECT id, email, name, role, phone, pin_code, status, created_at FROM users WHERE id=?`, [id]);
+    await logAuditEvent(session, 'STAFF_MEMBER_CREATED', 'STAFF', { email, name, role });
     return NextResponse.json({ staff: newUser, success: true }, { status: 201 });
   } catch (error: any) {
-    if (error.code === '23505') {
-      return NextResponse.json({ error: 'A user with this email already exists' }, { status: 409 });
-    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = getUserFromRequest(req);
-    const body = await req.json();
-    const { id, name, role, phone, pin_code, status, password } = body;
+    const session = await getUserFromRequest(req);
+    if (session && !checkUserPermission(session.role, session.permissions, 'manage_staff'))
+      return NextResponse.json({ error: 'Access Denied' }, { status: 403 });
 
-    if (!id) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
-    }
+    const { id, name, role, phone, pin_code, status, password, permissions } = await req.json();
+    if (!id) return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
 
-    const updates: string[] = [];
-    const params: any[] = [id];
+    const sets: string[] = [];
+    const params: any[] = [];
+    if (name) { sets.push(`name=?`); params.push(name.trim()); }
+    if (role) { sets.push(`role=?`); params.push(role); }
+    if (phone !== undefined) { sets.push(`phone=?`); params.push(phone); }
+    if (pin_code !== undefined) { sets.push(`pin_code=?`); params.push(pin_code); }
+    if (status) { sets.push(`status=?`); params.push(status); }
+    if (permissions !== undefined) { sets.push(`permissions=?`); params.push(JSON.stringify(permissions)); }
+    if (password) { sets.push(`password_hash=?`); params.push(await hashPassword(password)); }
+    sets.push(`updated_at=datetime('now')`);
+    params.push(id);
 
-    if (name) {
-      params.push(name.trim());
-      updates.push(`name = $${params.length}`);
-    }
-    if (role) {
-      params.push(role);
-      updates.push(`role = $${params.length}`);
-    }
-    if (phone !== undefined) {
-      params.push(phone);
-      updates.push(`phone = $${params.length}`);
-    }
-    if (pin_code !== undefined) {
-      params.push(pin_code);
-      updates.push(`pin_code = $${params.length}`);
-    }
-    if (status) {
-      params.push(status);
-      updates.push(`status = $${params.length}`);
-    }
-    if (password) {
-      const passwordHash = await hashPassword(password);
-      params.push(passwordHash);
-      updates.push(`password_hash = $${params.length}`);
-    }
-
-    updates.push(`updated_at = CURRENT_TIMESTAMP`);
-
-    const res = await query(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = $1 RETURNING id, email, name, role, phone, pin_code, status, updated_at`,
-      params
-    );
-
-    await logAuditEvent({
-      staffId: session?.id,
-      staffName: session?.name || 'Admin',
-      action: 'STAFF_MEMBER_UPDATED',
-      module: 'STAFF',
-      details: { userId: id, updates: { role, status, name } },
-    });
-
-    return NextResponse.json({ staff: res.rows[0], success: true });
+    await execute(`UPDATE users SET ${sets.join(',')} WHERE id=?`, params);
+    const updated = await queryOne(`SELECT id, email, name, role, phone, pin_code, status, permissions FROM users WHERE id=?`, [id]);
+    await logAuditEvent(session, 'STAFF_MEMBER_UPDATED', 'STAFF', { userId: id });
+    return NextResponse.json({ staff: updated, success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

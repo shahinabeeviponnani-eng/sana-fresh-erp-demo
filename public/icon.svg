@@ -14,22 +14,34 @@
       <stop offset="100%" stop-color="#84cc16" />
     </linearGradient>
   </defs>
-  <!-- Dark Blue Background with Rounded Corners -->
-  <rect width="512" height="512" rx="120" fill="url(#bgGlow)" stroke="#1e293b" stroke-width="8" />
-  
-  <!-- Subtle Dark Blue Pattern Dots -->
-  <g fill="#1e293b" opacity="0.6">
-    <circle cx="80" cy="80" r="4" /><circle cx="160" cy="80" r="4" /><circle cx="240" cy="80" r="4" /><circle cx="320" cy="80" r="4" /><circle cx="400" cy="80" r="4" />
-    <circle cx="80" cy="160" r="4" /><circle cx="400" cy="160" r="4" />
-    <circle cx="80" cy="360" r="4" /><circle cx="400" cy="360" r="4" />
-    <circle cx="80" cy="440" r="4" /><circle cx="160" cy="440" r="4" /><circle cx="240" cy="440" r="4" /><circle cx="320" cy="440" r="4" /><circle cx="400" cy="440" r="4" />
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bgGlow)" stroke="#1e293b" stroke-width="6" />
+
+  <!-- Subtle dot grid -->
+  <g fill="#1e293b" opacity="0.5">
+    <circle cx="80"  cy="80"  r="3.5"/><circle cx="176" cy="80"  r="3.5"/><circle cx="272" cy="80"  r="3.5"/><circle cx="368" cy="80"  r="3.5"/><circle cx="432" cy="80"  r="3.5"/>
+    <circle cx="80"  cy="176" r="3.5"/><circle cx="432" cy="176" r="3.5"/>
+    <circle cx="80"  cy="336" r="3.5"/><circle cx="432" cy="336" r="3.5"/>
+    <circle cx="80"  cy="432" r="3.5"/><circle cx="176" cy="432" r="3.5"/><circle cx="272" cy="432" r="3.5"/><circle cx="368" cy="432" r="3.5"/><circle cx="432" cy="432" r="3.5"/>
   </g>
 
-  <!-- Stylized "S" Leaf Motif for SANA FRESH -->
-  <path d="M 330 130 C 230 100, 160 170, 180 260 C 190 305, 230 330, 280 340 C 330 350, 350 380, 335 410 C 315 440, 260 445, 210 425 C 195 419, 185 407, 180 395" 
-        fill="none" stroke="url(#leafGrad)" stroke-width="44" stroke-linecap="round" stroke-linejoin="round" />
-  
-  <!-- Fresh Organic Sprout / Leaf on Top -->
-  <path d="M 330 130 C 390 120, 420 170, 390 220 C 350 210, 320 170, 330 130 Z" fill="url(#leafGrad)" />
-  <circle cx="390" cy="150" r="14" fill="url(#goldAccent)" />
+  <!-- "S" curve — clean, proportional stroke -->
+  <path d="M 320 148
+             C 230 118, 158 182, 178 264
+             C 190 310, 234 334, 282 344
+             C 328 354, 348 386, 332 414
+             C 312 444, 256 450, 204 428"
+        fill="none"
+        stroke="url(#leafGrad)"
+        stroke-width="36"
+        stroke-linecap="round"
+        stroke-linejoin="round" />
+
+  <!-- Leaf sprout at top of S — separated cleanly from stroke start -->
+  <path d="M 320 148 C 374 108, 418 152, 388 208 C 352 196, 316 164, 320 148 Z"
+        fill="url(#leafGrad)" />
+
+  <!-- Small gold berry on leaf -->
+  <circle cx="388" cy="162" r="11" fill="url(#goldAccent)" />
 </svg>

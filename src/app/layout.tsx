@@ -1,7 +1,9 @@
+import React, { Suspense } from 'react';
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import AppLayout from '@/components/layout/AppLayout';
+import { ToastProvider } from '@/components/ui/Toast';
 
 export const metadata: Metadata = {
   title: 'SANA FRESH - Omnichannel ERP (Wholesale & Retail)',
@@ -35,7 +37,11 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-slate-50 text-slate-900 min-h-screen">
         <AuthProvider>
-          <AppLayout>{children}</AppLayout>
+          <ToastProvider>
+            <Suspense fallback={null}>
+              <AppLayout>{children}</AppLayout>
+            </Suspense>
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

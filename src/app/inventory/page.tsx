@@ -19,9 +19,11 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/components/ui/Toast';
 
 export default function InventoryPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'STOCK' | 'LEDGER'>('STOCK');
   const [stockData, setStockData] = useState<any>(null);
   const [filter, setFilter] = useState<string>('all');
@@ -29,6 +31,7 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState<boolean>(true);
 
   // Adjustment Modal
+  const [expandedBatches, setExpandedBatches] = useState<Set<number>>(new Set());
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [adjustType, setAdjustType] = useState('ADJUSTMENT_DAMAGE');
@@ -36,10 +39,10 @@ export default function InventoryPage() {
   const [adjustReason, setAdjustReason] = useState<string>('');
   const [adjustSubmitting, setAdjustSubmitting] = useState(false);
 
-  const fetchStock = async () => {
+  const fetchStock = async (currentFilter = filter, currentSearch = search) => {
     try {
       setLoading(true);
-      const url = `/api/stock?filter=${filter}&search=${encodeURIComponent(search)}`;
+      const url = `/api/stock?filter=${currentFilter}&search=${encodeURIComponent(currentSearch)}`;
       const res = await fetch(url);
       const data = await res.json();
       setStockData(data);
@@ -51,12 +54,13 @@ export default function InventoryPage() {
   };
 
   useEffect(() => {
-    fetchStock();
-  }, [filter]);
+    fetchStock(filter, search);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchStock();
+    fetchStock(filter, search);
   };
 
   const openAdjustModal = (product: any) => {
@@ -71,7 +75,7 @@ export default function InventoryPage() {
     e.preventDefault();
     if (!selectedProduct) return;
     if (!adjustReason.trim()) {
-      alert('Please provide a reason for the inventory adjustment audit.');
+      toast('Please provide a reason for the inventory adjustment audit.', 'warning');
       return;
     }
 
@@ -99,13 +103,11 @@ export default function InventoryPage() {
         throw new Error(data.error || 'Adjustment failed');
       }
 
-      alert(
-        `Inventory for "${selectedProduct.name}" updated! Previous: ${data.product.previousStock}, New: ${data.product.newStock}`
-      );
+      toast(`Inventory for "${selectedProduct.name}" updated! Previous: ${data.product.previousStock}, New: ${data.product.newStock}`, 'success');
       setAdjustModalOpen(false);
       fetchStock();
     } catch (err: any) {
-      alert(err.message);
+      toast(err.message, 'error');
     } finally {
       setAdjustSubmitting(false);
     }
@@ -127,22 +129,20 @@ export default function InventoryPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              SANA FRESH Cold Chain & Stock
+              SANA FRESH Stock & Warehouse
             </h1>
             <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-200">
-              Live Warehouse Ledger
+              Live Warehouse Stock
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Real-time perishable stock tracking, cold storage audits, and automated replenishment alerts.
+            Real-time stock tracking, warehouse audits, and automated replenishment alerts.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              if (stockData?.items?.length > 0) openAdjustModal(stockData.items[0]);
-            }}
+            onClick={() => setAdjustModalOpen(true)}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-sm"
           >
             <Sliders className="w-4 h-4" />
@@ -156,7 +156,7 @@ export default function InventoryPage() {
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="text-xs font-semibold text-slate-500 uppercase">Valuation (At Cost)</div>
           <div className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
-            ${Number(summary.total_cost_value).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            £{Number(summary.total_cost_value).toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-slate-500 mt-0.5">{summary.total_units} Total Units</div>
         </div>
@@ -164,7 +164,7 @@ export default function InventoryPage() {
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="text-xs font-semibold text-slate-500 uppercase">Retail Potential</div>
           <div className="text-xl sm:text-2xl font-black text-emerald-600 mt-1">
-            ${Number(summary.total_retail_value).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            £{Number(summary.total_retail_value).toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-emerald-700 mt-0.5">Estimated gross counter value</div>
         </div>
@@ -225,7 +225,7 @@ export default function InventoryPage() {
             </div>
             <select
               value={filter}
-              onChange={(e) => setFilter(e.target.value)}
+              onChange={(e) => { setFilter(e.target.value); fetchStock(e.target.value, search); }}
               className="py-1.5 px-2.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-700 font-medium"
             >
               <option value="all">All Products</option>
@@ -254,61 +254,82 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {stockData?.items?.map((item: any) => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 font-mono">
-                      <div className="font-bold text-slate-900">{item.sku}</div>
-                      <div className="text-[10px] text-slate-400">{item.barcode || 'N/A'}</div>
-                    </td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-900">
-                      {item.name}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600">
-                      {item.category_name}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono font-medium text-slate-700">
-                      ${Number(item.cost_price).toFixed(2)}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono">
-                      <div className="text-emerald-600 font-bold">
-                        R: ${Number(item.retail_price).toFixed(2)}
-                      </div>
-                      <div className="text-indigo-600 font-semibold text-[11px]">
-                        W: ${Number(item.wholesale_price).toFixed(2)}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-sm">
-                      <span className={item.stock_quantity <= item.reorder_level ? 'text-amber-600' : 'text-slate-900'}>
-                        {item.stock_quantity}
-                      </span>{' '}
-                      <span className="text-xs text-slate-400 font-normal">{item.unit}</span>
-                      <div className="text-[10px] text-slate-400 font-normal">
-                        Reorder at: {item.reorder_level}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                          item.stock_status === 'IN_STOCK'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : item.stock_status === 'LOW_STOCK'
-                            ? 'bg-amber-100 text-amber-800'
+                {stockData?.items?.map((item: any) => {
+                  const itemBatches = (stockData?.batches || []).filter((b: any) => b.product_id === item.id);
+                  const isExpanded = expandedBatches.has(item.id);
+                  return (
+                    <React.Fragment key={item.id}>
+                      <tr className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3.5 px-4 font-mono">
+                          <div className="font-bold text-slate-900">{item.sku}</div>
+                          <div className="text-[10px] text-slate-400">{item.barcode || 'N/A'}</div>
+                        </td>
+                        <td className="py-3.5 px-4 font-semibold text-slate-900">
+                          {item.name}
+                          {itemBatches.length > 0 && (
+                            <button
+                              onClick={() => setExpandedBatches(prev => {
+                                const next = new Set(prev);
+                                next.has(item.id) ? next.delete(item.id) : next.add(item.id);
+                                return next;
+                              })}
+                              className="ml-2 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-1.5 py-0.5 rounded"
+                            >
+                              {isExpanded ? '▲' : '▼'} {itemBatches.length} batch{itemBatches.length > 1 ? 'es' : ''}
+                            </button>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-600">{item.category_name}</td>
+                        <td className="py-3.5 px-4 font-mono font-medium text-slate-700">£{Number(item.cost_price).toFixed(2)}</td>
+                        <td className="py-3.5 px-4 font-mono">
+                          <div className="text-emerald-600 font-bold">R: £{Number(item.retail_price).toFixed(2)}</div>
+                          <div className="text-indigo-600 font-semibold text-[11px]">W: £{Number(item.wholesale_price).toFixed(2)}</div>
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-sm">
+                          <span className={item.stock_quantity <= item.reorder_level ? 'text-amber-600' : 'text-slate-900'}>
+                            {item.stock_quantity}
+                          </span>{' '}
+                          <span className="text-xs text-slate-400 font-normal">{item.unit}</span>
+                          <div className="text-[10px] text-slate-400 font-normal">Reorder at: {item.reorder_level}</div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            item.stock_status === 'IN_STOCK' ? 'bg-emerald-100 text-emerald-800'
+                            : item.stock_status === 'LOW_STOCK' ? 'bg-amber-100 text-amber-800'
                             : 'bg-rose-100 text-rose-800'
-                        }`}
-                      >
-                        {item.stock_status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => openAdjustModal(item)}
-                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold shadow-sm"
-                      >
-                        Adjust
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                          }`}>
+                            {item.stock_status.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <button onClick={() => openAdjustModal(item)} className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold shadow-sm">
+                            Adjust
+                          </button>
+                        </td>
+                      </tr>
+                      {isExpanded && itemBatches.map((batch: any) => (
+                        <tr key={`batch-${batch.id}`} className="bg-indigo-50/60 border-l-4 border-indigo-300">
+                          <td className="py-2 px-4 pl-8 font-mono text-[11px] text-indigo-700 font-bold" colSpan={2}>
+                            {batch.batch_number}
+                            <div className="text-[10px] text-indigo-500 font-normal">{batch.po_number}</div>
+                          </td>
+                          <td className="py-2 px-4 text-[11px] text-slate-600">{batch.vendor_name || '—'}</td>
+                          <td className="py-2 px-4 font-mono text-[11px] text-slate-700">£{Number(batch.unit_cost).toFixed(3)}</td>
+                          <td className="py-2 px-4 text-[11px] text-slate-500">
+                            Received: {new Date(batch.received_at).toLocaleDateString()}
+                          </td>
+                          <td className="py-2 px-4 font-bold text-[11px]">
+                            <span className="text-indigo-700">{Number(batch.quantity_remaining)}</span>
+                            <span className="text-slate-400 font-normal"> / {Number(batch.quantity_received)} received</span>
+                          </td>
+                          <td className="py-2 px-4" colSpan={2}>
+                            <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">BATCH</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

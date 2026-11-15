@@ -16,6 +16,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import Pagination from '@/components/ui/Pagination';
 
 export default function LogsPage() {
   const { user } = useAuth();
@@ -25,14 +26,20 @@ export default function LogsPage() {
   const [search, setSearch] = useState('');
   const [expandedLogId, setExpandedLogId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const LIMIT = 50;
 
-  const fetchLogs = async () => {
+  const fetchLogs = async (p = page) => {
     try {
       setLoading(true);
-      const url = `/api/logs?module=${moduleFilter}&severity=${severityFilter}&search=${encodeURIComponent(search)}`;
+      const url = `/api/logs?module=${moduleFilter}&severity=${severityFilter}&search=${encodeURIComponent(search)}&page=${p}&limit=${LIMIT}`;
       const res = await fetch(url);
       const data = await res.json();
       setLogs(data.logs || []);
+      setTotal(data.total || 0);
+      setTotalPages(data.totalPages || 1);
     } catch (err) {
       console.error(err);
     } finally {
@@ -41,12 +48,19 @@ export default function LogsPage() {
   };
 
   useEffect(() => {
-    fetchLogs();
+    setPage(1);
+    fetchLogs(1);
   }, [moduleFilter, severityFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchLogs();
+    setPage(1);
+    fetchLogs(1);
+  };
+
+  const handlePageChange = (p: number) => {
+    setPage(p);
+    fetchLogs(p);
   };
 
   const toggleExpand = (id: number) => {
@@ -72,7 +86,7 @@ export default function LogsPage() {
         </div>
 
         <button
-          onClick={fetchLogs}
+          onClick={() => fetchLogs(page)}
           className="p-2.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-sm flex items-center gap-1.5 self-start sm:self-center"
         >
           <RefreshCw className="w-3.5 h-3.5" /> Live Sync
@@ -220,6 +234,7 @@ export default function LogsPage() {
             })}
           </div>
         )}
+        <Pagination page={page} totalPages={totalPages} total={total} limit={LIMIT} onPageChange={handlePageChange} />
       </div>
     </div>
   );

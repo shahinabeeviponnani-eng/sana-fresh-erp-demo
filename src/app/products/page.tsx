@@ -13,16 +13,26 @@ import {
   RefreshCw,
   X,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/components/ui/Toast';
 
 export default function ProductsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Add / Edit Modal
   const [modalOpen, setModalOpen] = useState(false);
@@ -69,6 +79,16 @@ export default function ProductsPage() {
   useEffect(() => {
     fetchData();
   }, [categoryFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [categoryFilter, search]);
+
+  const totalProducts = products.length;
+  const totalPages = Math.max(1, Math.ceil(totalProducts / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const paginatedProducts = products.slice(startIndex, startIndex + pageSize);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,11 +149,11 @@ export default function ProductsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Operation failed');
 
-      alert(editingProduct ? 'Product updated successfully' : 'Product created successfully');
+      toast(editingProduct ? 'Product updated successfully' : 'Product created successfully', 'success');
       setModalOpen(false);
       fetchData();
     } catch (err: any) {
-      alert(err.message);
+      toast(err.message, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -155,7 +175,7 @@ export default function ProductsPage() {
       setCategoryModalOpen(false);
       fetchData();
     } catch (err: any) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   };
 
@@ -165,7 +185,7 @@ export default function ProductsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            SANA FRESH Products & Produce
+            SANA FRESH Products
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Maintain organic produce, dairy, fruits, SKU barcodes, and dual Wholesale & Retail pricing.
@@ -260,7 +280,7 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {products.map((p) => (
+                {paginatedProducts.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4 font-mono">
                       <div className="font-bold text-slate-900">{p.sku}</div>
@@ -277,14 +297,14 @@ export default function ProductsPage() {
                       </span>
                     </td>
                     <td className="py-3.5 px-4 font-mono font-medium text-slate-600">
-                      ${Number(p.cost_price).toFixed(2)}
+                      £{Number(p.cost_price).toFixed(2)}
                     </td>
                     <td className="py-3.5 px-4 font-mono font-bold text-emerald-600">
-                      ${Number(p.retail_price).toFixed(2)}
+                      £{Number(p.retail_price).toFixed(2)}
                     </td>
                     <td className="py-3.5 px-4 font-mono">
                       <div className="text-indigo-600 font-bold">
-                        ${Number(p.wholesale_price).toFixed(2)}
+                        £{Number(p.wholesale_price).toFixed(2)}
                       </div>
                       <div className="text-[10px] text-slate-400 font-sans">
                         Min: {p.min_wholesale_qty} {p.unit}
@@ -307,6 +327,72 @@ export default function ProductsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Bar */}
+        {!loading && totalProducts > 0 && (
+          <div className="px-4 py-3 border-t border-slate-200 bg-slate-50/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+            <div className="flex items-center gap-2">
+              <span>
+                Showing <strong className="text-slate-900 font-bold">{startIndex + 1}</strong> to{' '}
+                <strong className="text-slate-900 font-bold">{Math.min(startIndex + pageSize, totalProducts)}</strong> of{' '}
+                <strong className="text-slate-900 font-bold">{totalProducts}</strong> products
+              </span>
+              <span className="text-slate-300">|</span>
+              <div className="flex items-center gap-1.5">
+                <span>Rows:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="py-1 px-2 bg-white border border-slate-300 rounded text-xs font-semibold focus:outline-none"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={safePage === 1}
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                title="First Page"
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm flex items-center gap-1 font-semibold"
+              >
+                <ChevronLeft className="w-4 h-4" /> Prev
+              </button>
+              <div className="px-3 py-1 font-bold text-slate-900 bg-white border border-slate-200 rounded-lg shadow-sm">
+                Page {safePage} of {totalPages}
+              </div>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm flex items-center gap-1 font-semibold"
+              >
+                Next <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={safePage === totalPages}
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                title="Last Page"
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -394,7 +480,7 @@ export default function ProductsPage() {
 
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="font-semibold text-slate-600 block mb-1">Cost Price ($)</label>
+                    <label className="font-semibold text-slate-600 block mb-1">Cost Price (£)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -405,7 +491,7 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="font-semibold text-emerald-700 block mb-1">Retail Price ($)</label>
+                    <label className="font-semibold text-emerald-700 block mb-1">Retail Price (£)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -416,7 +502,7 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div>
-                    <label className="font-semibold text-indigo-700 block mb-1">Wholesale ($)</label>
+                    <label className="font-semibold text-indigo-700 block mb-1">Wholesale (£)</label>
                     <input
                       type="number"
                       step="0.01"

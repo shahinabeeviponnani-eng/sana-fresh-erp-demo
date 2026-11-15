@@ -9,23 +9,28 @@
     "start": "next start",
     "lint": "next lint",
     "db:init": "node scripts/init-db.js",
-    "db:seed": "node scripts/seed-db.js"
+    "db:seed": "node scripts/seed-db.js",
+    "pages:build": "npx @cloudflare/next-on-pages",
+    "cf:build": "npx @cloudflare/next-on-pages",
+    "cf:d1:local:schema": "wrangler d1 execute sana-fresh-erp-db --local --file=scripts/schema-d1.sql",
+    "cf:d1:local:seed": "wrangler d1 execute sana-fresh-erp-db --local --file=scripts/seed-d1.sql",
+    "cf:d1:create": "wrangler d1 create sana-fresh-erp-db",
+    "cf:d1:schema": "wrangler d1 execute sana-fresh-erp-db --file=scripts/schema-d1.sql",
+    "cf:d1:seed": "wrangler d1 execute sana-fresh-erp-db --file=scripts/seed-d1.sql",
+    "cf:deploy": "wrangler pages deploy .vercel/output/static",
+    "cf:dev": "wrangler pages dev .vercel/output/static"
   },
   "dependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/jsonwebtoken": "^9.0.7",
+    "@cloudflare/next-on-pages": "^1.13.7",
     "@types/node": "^22.7.4",
-    "@types/pg": "^8.11.10",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.20",
-    "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
-    "jsonwebtoken": "^9.0.2",
+    "jose": "^5.9.6",
     "lucide-react": "^0.446.0",
     "next": "^14.2.24",
-    "pg": "^8.13.0",
     "postcss": "^8.4.47",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -33,5 +38,8 @@
     "tailwind-merge": "^2.5.2",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.3"
+  },
+  "devDependencies": {
+    "wrangler": "^4.162.0"
   }
 }

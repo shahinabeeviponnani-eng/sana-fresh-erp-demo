@@ -1,31 +1,20 @@
-import { query } from './db';
+import { execute } from './db';
+import { UserSession } from './auth';
 
-export interface AuditLogOptions {
-  staffId?: number | null;
-  staffName?: string | null;
-  action: string;
-  module: 'AUTH' | 'RETAIL' | 'WHOLESALE' | 'INVENTORY' | 'CUSTOMERS' | 'VENDORS' | 'STAFF' | 'SETTINGS' | 'REPORTS';
-  severity?: 'INFO' | 'WARNING' | 'CRITICAL';
-  details?: Record<string, any>;
-  ipAddress?: string;
-}
-
-export async function logAuditEvent({
-  staffId = null,
-  staffName = 'System',
-  action,
-  module,
-  severity = 'INFO',
-  details = {},
-  ipAddress = '127.0.0.1',
-}: AuditLogOptions): Promise<void> {
+export async function logAuditEvent(
+  session: UserSession | null,
+  action: string,
+  module: string,
+  details: object,
+  severity: 'INFO' | 'WARNING' | 'CRITICAL' = 'INFO'
+): Promise<void> {
   try {
-    await query(
+    await execute(
       `INSERT INTO audit_logs (staff_id, staff_name, action, module, severity, details, ip_address)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [staffId, staffName, action, module, severity, JSON.stringify(details), ipAddress]
+       VALUES (?, ?, ?, ?, ?, ?, '127.0.0.1')`,
+      [session?.id ?? null, session?.name ?? 'System', action, module, severity, JSON.stringify(details)]
     );
-  } catch (err) {
-    console.error('Failed to write audit log:', err);
+  } catch {
+    // Non-fatal
   }
 }
