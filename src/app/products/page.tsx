@@ -98,17 +98,17 @@ export default function ProductsPage() {
   const openCreateModal = () => {
     setEditingProduct(null);
     setFormData({
-      sku: `PROD-${Date.now().toString().slice(-4)}`,
-      barcode: `890${Date.now().toString().slice(-9)}`,
+      sku: '',
+      barcode: '',
       name: '',
       description: '',
       category_id: categories.length > 0 ? categories[0].id.toString() : '',
-      cost_price: '10.00',
-      retail_price: '25.00',
-      wholesale_price: '18.00',
-      min_wholesale_qty: '10',
-      stock_quantity: '50',
-      reorder_level: '15',
+      cost_price: '',
+      retail_price: '',
+      wholesale_price: '',
+      min_wholesale_qty: '1',
+      stock_quantity: '0',
+      reorder_level: '10',
       unit: 'pcs',
     });
     setModalOpen(true);
@@ -417,18 +417,22 @@ export default function ProductsPage() {
                   <input
                     type="text"
                     required
+                    placeholder="Enter SKU (e.g. SF-COLA or 1001)"
                     value={formData.sku}
                     onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                    className="w-full py-2 px-3 border border-slate-300 rounded-lg font-mono font-bold"
+                    className="w-full py-2 px-3 border border-slate-300 rounded-lg font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Barcode</label>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Barcode <span className="text-slate-400 font-normal text-[11px]">(Scan or type)</span>
+                  </label>
                   <input
                     type="text"
+                    placeholder="Scan product barcode with scanner or type..."
                     value={formData.barcode}
                     onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                    className="w-full py-2 px-3 border border-slate-300 rounded-lg font-mono"
+                    className="w-full py-2 px-3 border border-slate-300 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               </div>
