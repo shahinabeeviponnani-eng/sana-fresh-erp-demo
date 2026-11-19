@@ -47,43 +47,79 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getUserFromRequest(req);
     if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
-    if (!checkUserPermission(session.role, session.permissions, 'manage_products'))
+
+    const canManageProducts = checkUserPermission(session.role, session.permissions, 'manage_products');
+    const canAccessPos = checkUserPermission(session.role, session.permissions, 'access_pos');
+    const canCreateInvoices = checkUserPermission(session.role, session.permissions, 'create_invoices');
+    if (!canManageProducts && !canAccessPos && !canCreateInvoices)
       return NextResponse.json({ error: 'Access Denied' }, { status: 403 });
 
     const { sku, barcode, name, description, category_id, cost_price, retail_price,
       wholesale_price, min_wholesale_qty, stock_quantity, reorder_level, unit } = await req.json();
 
-    if (!sku || !name || retail_price === undefined)
-      return NextResponse.json({ error: 'SKU, Name and Retail Price are required' }, { status: 400 });
+    if (!name || retail_price === undefined)
+      return NextResponse.json({ error: 'Product name and Retail Price are required' }, { status: 400 });
 
-    if (barcode) {
-      const dup = await queryOne(`SELECT id FROM products WHERE barcode = ? AND is_active = 1`, [barcode]);
+    const cleanBarcode = barcode && typeof barcode === 'string' && barcode.trim() ? barcode.trim() : null;
+    if (cleanBarcode) {
+      const dup = await queryOne(`SELECT id FROM products WHERE barcode = ? AND is_active = 1`, [cleanBarcode]);
       if (dup) return NextResponse.json({ error: 'A product with this barcode already exists.' }, { status: 409 });
     }
 
-    const skuDup = await queryOne(`SELECT id FROM products WHERE sku = ?`, [sku.toUpperCase().trim()]);
-    if (skuDup) return NextResponse.json({ error: 'A product with this SKU already exists.' }, { status: 409 });
+    let finalSku = sku && typeof sku === 'string' && sku.trim() ? sku.trim().toUpperCase() : '';
+    if (!finalSku) {
+      if (cleanBarcode) {
+        finalSku = cleanBarcode.toUpperCase();
+      } else {
+        finalSku = `SKU-${Date.now().toString().slice(-6)}`;
+      }
+    }
+
+    const skuDup = await queryOne(`SELECT id FROM products WHERE sku = ?`, [finalSku]);
+    if (skuDup) {
+      if (!sku || !sku.trim()) {
+        finalSku = `${finalSku}-${Math.floor(100 + Math.random() * 900)}`;
+      } else {
+        return NextResponse.json({ error: 'A product with this SKU already exists.' }, { status: 409 });
+      }
+    }
+
+    const initStock = Number(stock_quantity) || 0;
+    const costPriceNum = Number(cost_price) || 0;
+    const retailPriceNum = Number(retail_price) || 0;
+    const wholesalePriceNum = wholesale_price !== undefined && wholesale_price !== ''
+      ? Number(wholesale_price)
+      : Number((retailPriceNum * 0.8).toFixed(2));
 
     const id = await insertReturningId(
       `INSERT INTO products (sku, barcode, name, description, category_id, cost_price, retail_price,
         wholesale_price, min_wholesale_qty, stock_quantity, reorder_level, unit)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [sku.toUpperCase().trim(), barcode || null, name.trim(), description || '',
-       category_id || null, Number(cost_price) || 0, Number(retail_price) || 0,
-       Number(wholesale_price) || Number(retail_price) * 0.8, Number(min_wholesale_qty) || 10,
-       Number(stock_quantity) || 0, Number(reorder_level) || 15, unit || 'pcs']
+      [finalSku, cleanBarcode, name.trim(), description || '',
+       category_id || null, costPriceNum, retailPriceNum,
+       wholesalePriceNum, Number(min_wholesale_qty) || 10,
+       initStock, Number(reorder_level) || 15, unit || 'pcs']
     );
 
-    if (Number(stock_quantity) > 0) {
+    if (initStock > 0) {
+      const batchNum = `BAT-INIT-${id}-${Date.now().toString().slice(-4)}`;
+      await execute(
+        `INSERT INTO stock_batches (product_id, batch_number, po_number, vendor_id, quantity_received, quantity_remaining, unit_cost, received_at, created_by)
+         VALUES (?, ?, 'INIT-STOCK', NULL, ?, ?, ?, datetime('now'), ?)`,
+        [id, batchNum, initStock, initStock, costPriceNum, session.id || 1]
+      );
       await execute(
         `INSERT INTO stock_movements (product_id, type, quantity, previous_stock, new_stock, reference_id, staff_id, reason)
-         VALUES (?, 'PURCHASE_RECEIVE', ?, 0, ?, 'INIT-PROD', ?, 'Initial inventory count')`,
-        [id, Number(stock_quantity), Number(stock_quantity), session.id]
+         VALUES (?, 'PURCHASE_RECEIVE', ?, 0, ?, 'INIT-PROD', ?, 'Initial shelf inventory / POS quick-add')`,
+        [id, initStock, initStock, session.id || 1]
       );
     }
 
-    const product = await queryOne(`SELECT p.*, c.name AS category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = ?`, [id]);
-    await logAuditEvent(session, 'PRODUCT_CREATED', 'INVENTORY', { sku, name });
+    const product = await queryOne(
+      `SELECT p.*, c.name AS category_name, c.code AS category_code FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = ?`,
+      [id]
+    );
+    await logAuditEvent(session, 'PRODUCT_CREATED', 'INVENTORY', { sku: finalSku, name });
     return NextResponse.json({ product, success: true }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

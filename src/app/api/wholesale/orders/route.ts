@@ -95,8 +95,7 @@ export async function POST(req: NextRequest) {
       if (!prod) throw new Error(`Product ID ${it.productId} not found.`);
       const qty = parseFloat(it.quantity);
       if (isNaN(qty) || qty <= 0) throw new Error(`Invalid quantity for ${prod.name}`);
-      if (prod.stock_quantity < qty)
-        return NextResponse.json({ error: `Insufficient stock for "${prod.name}". Available: ${prod.stock_quantity}, Requested: ${qty}` }, { status: 400 });
+      // Negative stock allowed: allow wholesale order even if stock is mismatched and goes negative
 
       const unitPrice = parseFloat(it.unitPrice ?? prod.wholesale_price);
       const discount = parseFloat(it.discount || 0);

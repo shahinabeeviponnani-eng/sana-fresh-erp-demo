@@ -76,6 +76,20 @@ export default function POSPage() {
   const [a4InvoiceOpen, setA4InvoiceOpen] = useState(false);
   const [invoicePayload, setInvoicePayload] = useState<InvoiceData | null>(null);
 
+  // Quick Add Product directly from Billing Screen
+  const [quickAddModalOpen, setQuickAddModalOpen] = useState(false);
+  const [quickProductSaving, setQuickProductSaving] = useState(false);
+  const [quickProductForm, setQuickProductForm] = useState({
+    barcode: '',
+    name: '',
+    category_id: '',
+    retail_price: '',
+    cost_price: '',
+    stock_quantity: '1',
+    unit: 'pcs',
+    sku: '',
+  });
+
   // Barcode input ref for barcode scanner guns
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -119,34 +133,114 @@ export default function POSPage() {
     return matchesCategory && matchesSearch;
   });
 
+  // Open Quick Add Product Modal directly from billing
+  const openQuickAddModal = (initialSearchOrBarcode = '') => {
+    const term = initialSearchOrBarcode.trim();
+    // Check if input looks like numbers or barcode vs a text product name
+    const looksLikeBarcode = /^[0-9A-Za-z_-]{3,}$/.test(term) && /\d/.test(term);
+    setQuickProductForm({
+      barcode: looksLikeBarcode ? term : (term.length >= 4 && !term.includes(' ') ? term : ''),
+      name: !looksLikeBarcode && term.includes(' ') ? term : '',
+      category_id: categories[0]?.id?.toString() || '',
+      retail_price: '',
+      cost_price: '',
+      stock_quantity: '1',
+      unit: 'pcs',
+      sku: '',
+    });
+    setQuickAddModalOpen(true);
+  };
+
+  const handleSaveQuickProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickProductForm.name.trim()) {
+      toast('Please enter a product name', 'warning');
+      return;
+    }
+    if (!quickProductForm.retail_price || isNaN(parseFloat(quickProductForm.retail_price))) {
+      toast('Please enter a valid retail price', 'warning');
+      return;
+    }
+
+    try {
+      setQuickProductSaving(true);
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sku: quickProductForm.sku.trim() || undefined,
+          barcode: quickProductForm.barcode.trim() || undefined,
+          name: quickProductForm.name.trim(),
+          category_id: quickProductForm.category_id ? parseInt(quickProductForm.category_id, 10) : null,
+          retail_price: parseFloat(quickProductForm.retail_price),
+          cost_price: quickProductForm.cost_price ? parseFloat(quickProductForm.cost_price) : 0,
+          stock_quantity: parseFloat(quickProductForm.stock_quantity) || 1,
+          unit: quickProductForm.unit || 'pcs',
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create product');
+      }
+
+      const newProd: Product = {
+        id: data.product.id,
+        sku: data.product.sku,
+        barcode: data.product.barcode || '',
+        name: data.product.name,
+        retail_price: Number(data.product.retail_price),
+        stock_quantity: Number(data.product.stock_quantity),
+        unit: data.product.unit || 'pcs',
+        category_name: data.product.category_name || '',
+        category_code: data.product.category_code || '',
+      };
+
+      setProducts((prev) => [newProd, ...prev]);
+      addToCart(newProd);
+      setSearchQuery('');
+      setQuickAddModalOpen(false);
+      toast(`"${newProd.name}" added to stock & billing cart!`, 'success');
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+    } catch (err: any) {
+      toast(err.message || 'Error saving product', 'error');
+    } finally {
+      setQuickProductSaving(false);
+    }
+  };
+
   // Handle Barcode Scan / Enter Key in Search Input
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
+    if (e.key === 'Enter') {
+      const term = searchQuery.trim();
+      if (!term) return;
+
       const match = products.find(
         (p) =>
-          p.barcode === searchQuery.trim() ||
-          p.sku.toLowerCase() === searchQuery.trim().toLowerCase()
+          (p.barcode && p.barcode.toLowerCase() === term.toLowerCase()) ||
+          p.sku.toLowerCase() === term.toLowerCase() ||
+          p.name.toLowerCase() === term.toLowerCase()
       );
+
       if (match) {
         addToCart(match);
         setSearchQuery('');
+        toast(`Added "${match.name}" to cart`, 'success');
+      } else {
+        // If scanned or entered barcode/product doesn't exist, open quick add modal with barcode pre-filled
+        openQuickAddModal(term);
+        toast(`"${term}" not in system. Quick add to billing below.`, 'info');
       }
     }
   };
 
+  // Add to cart - allows sale even when stock is 0 or negative
   const addToCart = (product: Product) => {
-    if (product.stock_quantity <= 0) {
-      toast(`"${product.name}" is currently Out of Stock!`, 'warning');
-      return;
-    }
-
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
-        if (existing.quantity >= product.stock_quantity) {
-          toast(`Cannot add more. Stock limit reached (${product.stock_quantity})`, 'warning');
-          return prev;
-        }
         return prev.map((item) =>
           item.product.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
@@ -157,16 +251,13 @@ export default function POSPage() {
     });
   };
 
+  // Update quantity - allows unrestricted quantities even exceeding stock
   const updateQuantity = (productId: number, delta: number) => {
     setCart((prev) =>
       prev
         .map((item) => {
           if (item.product.id === productId) {
             const newQty = item.quantity + delta;
-            if (newQty > item.product.stock_quantity) {
-              toast(`Maximum available stock reached (${item.product.stock_quantity})`, 'warning');
-              return item;
-            }
             return newQty > 0 ? { ...item, quantity: newQty } : null;
           }
           return item;
@@ -318,6 +409,16 @@ export default function POSPage() {
             )}
           </div>
 
+          {/* Quick Add Product Button */}
+          <button
+            onClick={() => openQuickAddModal(searchQuery.trim())}
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 shadow-sm transition-colors whitespace-nowrap active:scale-95 shrink-0"
+            title="Add unlisted shelf item directly to billing"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Quick Product</span>
+          </button>
+
           {/* Customer Selector / Search & Quick Add */}
           <div className="shrink-0 min-w-[220px]">
             <CustomerPicker
@@ -365,9 +466,18 @@ export default function POSPage() {
               Loading produce catalogue...
             </div>
           ) : filteredProducts.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs">
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs py-12">
               <AlertCircle className="w-8 h-8 mb-2 text-slate-300" />
               <span>No produce found matching &ldquo;{searchQuery}&rdquo;</span>
+              {searchQuery && (
+                <button
+                  onClick={() => openQuickAddModal(searchQuery.trim())}
+                  className="mt-3 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center gap-2 shadow"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Quick Add &ldquo;{searchQuery}&rdquo; to Cart &amp; Stock</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 pb-20 lg:pb-6">
@@ -379,12 +489,11 @@ export default function POSPage() {
                   <button
                     key={p.id}
                     onClick={() => addToCart(p)}
-                    disabled={isOutOfStock}
                     className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all duration-150 relative bg-white ${
-                      isOutOfStock
-                        ? 'opacity-50 cursor-not-allowed border-slate-200'
-                        : inCart
+                      inCart
                         ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
+                        : isOutOfStock
+                        ? 'border-amber-300 bg-amber-50/20 hover:border-amber-400 hover:shadow-md'
                         : 'border-slate-200/80 hover:border-emerald-400 hover:shadow-md'
                     }`}
                   >
@@ -395,8 +504,13 @@ export default function POSPage() {
                     )}
 
                     <div>
-                      <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                        {p.unit || 'pcs'}
+                      <div className="flex items-center justify-between text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                        <span>{p.unit || 'pcs'}</span>
+                        {p.barcode && (
+                          <span className="font-mono text-[9px] text-slate-400 truncate max-w-[80px]" title={`Barcode: ${p.barcode}`}>
+                            {p.barcode}
+                          </span>
+                        )}
                       </div>
                       <div className="font-bold text-xs sm:text-sm text-slate-900 line-clamp-2 mt-0.5 leading-snug">
                         {p.name}
@@ -409,12 +523,14 @@ export default function POSPage() {
                       </span>
                       <span
                         className={`text-[10px] font-semibold ${
-                          p.stock_quantity <= 10
-                            ? 'text-amber-600'
+                          p.stock_quantity <= 0
+                            ? 'text-rose-600 font-bold bg-rose-50 px-1 py-0.5 rounded border border-rose-200'
+                            : p.stock_quantity <= 10
+                            ? 'text-amber-600 font-bold'
                             : 'text-slate-400'
                         }`}
                       >
-                        {p.stock_quantity} in stock
+                        {p.stock_quantity <= 0 ? `${p.stock_quantity} (Negative OK)` : `${p.stock_quantity} in stock`}
                       </span>
                     </div>
                   </button>
@@ -510,8 +626,13 @@ export default function POSPage() {
                     <div className="font-bold text-xs text-slate-900 truncate">
                       {item.product.name}
                     </div>
-                    <div className="text-[11px] font-mono text-slate-500">
-                      £{Number(item.product.retail_price).toFixed(2)} / {item.product.unit || 'pcs'}
+                    <div className="text-[11px] font-mono text-slate-500 flex items-center gap-1.5 flex-wrap">
+                      <span>£{Number(item.product.retail_price).toFixed(2)} / {item.product.unit || 'pcs'}</span>
+                      {item.product.stock_quantity <= 0 && (
+                        <span className="text-[9px] font-semibold text-rose-600 bg-rose-50 px-1 py-0.2 rounded border border-rose-200">
+                          0 Stock (Negative OK)
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="font-mono font-bold text-xs text-slate-900">
@@ -883,6 +1004,190 @@ export default function POSPage() {
         onClose={() => setA4InvoiceOpen(false)}
         invoice={invoicePayload}
       />
+
+      {/* ================= QUICK ADD PRODUCT DIRECTLY FROM BILLING ================= */}
+      {quickAddModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200 animate-in fade-in">
+            <div className="p-4 bg-emerald-600 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Barcode className="w-5 h-5 text-emerald-200" />
+                <div>
+                  <h3 className="font-bold text-sm">Quick Add Shelf Product</h3>
+                  <p className="text-[11px] text-emerald-100">Add directly to stock &amp; billing cart</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickAddModalOpen(false)}
+                className="text-white/80 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveQuickProduct} className="p-5 space-y-3.5">
+              {/* Barcode input */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Product Barcode (Scan gun or type manually)
+                </label>
+                <div className="relative">
+                  <Barcode className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="e.g. 506012345678 or scan now..."
+                    value={quickProductForm.barcode}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
+                    className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    autoFocus
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Scan barcode with gun scanner or type the numbers manually.
+                </p>
+              </div>
+
+              {/* Product Name */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Product Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Fresh Mangoes Box"
+                  value={quickProductForm.name}
+                  onChange={(e) => setQuickProductForm({ ...quickProductForm, name: e.target.value })}
+                  className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* Category & Unit Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={quickProductForm.category_id}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, category_id: e.target.value })}
+                    className="w-full px-2.5 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  >
+                    <option value="">Produce / General</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Unit
+                  </label>
+                  <select
+                    value={quickProductForm.unit}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, unit: e.target.value })}
+                    className="w-full px-2.5 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  >
+                    <option value="pcs">Pieces (pcs)</option>
+                    <option value="kg">Kilogram (kg)</option>
+                    <option value="box">Box (box)</option>
+                    <option value="pack">Pack (pack)</option>
+                    <option value="bunch">Bunch (bunch)</option>
+                    <option value="bag">Bag (bag)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Pricing Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Retail Price (£) *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">£</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      placeholder="0.00"
+                      value={quickProductForm.retail_price}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, retail_price: e.target.value })}
+                      className="w-full pl-7 pr-3 py-2 text-xs sm:text-sm font-mono font-bold border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Cost Price (£) <span className="font-normal text-slate-400">(Optional)</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">£</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={quickProductForm.cost_price}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, cost_price: e.target.value })}
+                      className="w-full pl-7 pr-3 py-2 text-xs sm:text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Initial Shelf Stock */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Rack / Shelf Initial Stock
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={quickProductForm.stock_quantity}
+                  onChange={(e) => setQuickProductForm({ ...quickProductForm, stock_quantity: e.target.value })}
+                  className="w-full px-3 py-2 text-xs sm:text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <p className="text-[10px] text-emerald-700 font-medium mt-1">
+                  ✓ Automatically creates a new stock batch and stock movement.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setQuickAddModalOpen(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 rounded-lg hover:bg-slate-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={quickProductSaving}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-md shadow-emerald-600/30 flex items-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {quickProductSaving ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving &amp; Adding...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Save &amp; Add to Cart</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

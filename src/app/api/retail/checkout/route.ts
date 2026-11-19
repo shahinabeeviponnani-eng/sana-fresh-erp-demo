@@ -31,8 +31,7 @@ export async function POST(req: NextRequest) {
       if (!prod) throw new Error(`Product ID ${item.productId} not found.`);
       const qty = parseFloat(item.quantity);
       if (isNaN(qty) || qty <= 0) throw new Error(`Invalid quantity for ${prod.name}`);
-      if (parseFloat(prod.stock_quantity) < qty)
-        return NextResponse.json({ error: `Insufficient stock for "${prod.name}". Available: ${prod.stock_quantity}, Requested: ${qty}` }, { status: 400 });
+      // Negative stock allowed: if stock is mismatched or 0 on shelf, sale continues and stock decrements to negative
 
       const unitPrice = parseFloat(item.unitPrice || prod.retail_price);
       const discount = parseFloat(item.discount || 0);
@@ -160,7 +159,7 @@ export async function PUT(req: NextRequest) {
       const prod = await queryOne(`SELECT id, name, sku, unit, cost_price, retail_price, stock_quantity FROM products WHERE id=?`, [item.productId]);
       if (!prod) throw new Error(`Product ${item.productId} not found`);
       const qty = parseFloat(item.quantity);
-      if (parseFloat(prod.stock_quantity) < qty) throw new Error(`Insufficient stock for "${prod.name}"`);
+      // Negative stock allowed: allow editing order even if stock goes negative
       const unitPrice = parseFloat(item.unitPrice || prod.retail_price);
       const discount = parseFloat(item.discount || 0);
       subtotal += unitPrice * qty;

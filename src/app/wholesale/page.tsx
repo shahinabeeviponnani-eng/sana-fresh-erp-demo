@@ -221,23 +221,15 @@ export default function WholesalePage() {
   };
 
   const addToCart = (prod: any) => {
-    if (prod.stock_quantity <= 0) {
-      toast(`"${prod.name}" is currently Out of Stock!`, 'warning');
-      return;
-    }
     setOrderItems((prev) => {
       const existing = prev.find((it) => it.productId === prod.id);
       if (existing) {
         const currentQty = parseFloat(String(existing.quantity)) || 0;
-        if (currentQty >= prod.stock_quantity) {
-          toast(`Stock limit reached for "${prod.name}" (${prod.stock_quantity} available)`, 'warning');
-          return prev;
-        }
         return prev.map((it) =>
           it.productId === prod.id ? { ...it, quantity: currentQty + 1 } : it
         );
       }
-      const initialQty = Math.min(Number(prod.min_wholesale_qty) || 1, prod.stock_quantity);
+      const initialQty = Math.max(1, Number(prod.min_wholesale_qty) || 1);
       return [
         ...prev,
         {
@@ -259,11 +251,6 @@ export default function WholesalePage() {
           if (it.productId === productId) {
             const currentQty = parseFloat(String(it.quantity)) || 0;
             const newQty = Math.max(0, currentQty + delta);
-            const prod = products.find((p) => p.id === productId);
-            if (prod && newQty > prod.stock_quantity) {
-              toast(`Maximum warehouse stock reached (${prod.stock_quantity})`, 'warning');
-              return it;
-            }
             return newQty > 0 ? { ...it, quantity: newQty } : null;
           }
           return it;
@@ -275,14 +262,6 @@ export default function WholesalePage() {
   const setExplicitQuantity = (productId: number, qtyStr: string) => {
     const val = parseFloat(qtyStr);
     if (isNaN(val) || val <= 0) return;
-    const prod = products.find((p) => p.id === productId);
-    if (prod && val > prod.stock_quantity) {
-      toast(`Exceeds warehouse stock of ${prod.stock_quantity}`, 'warning');
-      setOrderItems((prev) =>
-        prev.map((it) => (it.productId === productId ? { ...it, quantity: prod.stock_quantity } : it))
-      );
-      return;
-    }
     setOrderItems((prev) =>
       prev.map((it) => (it.productId === productId ? { ...it, quantity: val } : it))
     );
@@ -799,12 +778,11 @@ export default function WholesalePage() {
                       <button
                         key={p.id}
                         onClick={() => addToCart(p)}
-                        disabled={isOutOfStock}
                         className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all duration-150 relative bg-white ${
-                          isOutOfStock
-                            ? 'opacity-50 cursor-not-allowed border-slate-200'
-                            : inCart
+                          inCart
                             ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
+                            : isOutOfStock
+                            ? 'border-amber-300 bg-amber-50/20 hover:border-amber-400 hover:shadow-md'
                             : 'border-slate-200/80 hover:border-emerald-400 hover:shadow-md'
                         }`}
                       >
@@ -838,12 +816,14 @@ export default function WholesalePage() {
                           </div>
                           <span
                             className={`text-[10px] font-semibold ${
-                              p.stock_quantity <= 10
+                              p.stock_quantity <= 0
+                                ? 'text-rose-600 font-bold bg-rose-50 px-1 py-0.2 rounded border border-rose-200'
+                                : p.stock_quantity <= 10
                                 ? 'text-amber-600 font-bold'
                                 : 'text-slate-400'
                             }`}
                           >
-                            {p.stock_quantity} left
+                            {p.stock_quantity <= 0 ? `${p.stock_quantity} in stock` : `${p.stock_quantity} left`}
                           </span>
                         </div>
                       </button>
