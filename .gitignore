@@ -6,5 +6,11 @@ build/
 .wrangler/
 tsconfig.tsbuildinfo
 .env*.local
+.env
 .DS_Store
 *.log
+build_out.txt
+login-body.txt
+login-headers.txt
+test-cookies.txt
+server.log

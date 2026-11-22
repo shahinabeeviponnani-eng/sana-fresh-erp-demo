@@ -26,6 +26,7 @@ import { useAuth } from '@/context/AuthContext';
 import SanaInvoiceModal, { InvoiceData } from '@/components/invoice/SanaInvoiceModal';
 import { useToast } from '@/components/ui/Toast';
 import CustomerPicker from '@/components/pos/CustomerPicker';
+import { useProductCache, CachedProduct } from '@/hooks/useProductCache';
 
 interface Product {
   id: number;
@@ -37,6 +38,7 @@ interface Product {
   unit: string;
   category_name: string;
   category_code: string;
+  image_url?: string | null;
 }
 
 interface CartItem {
@@ -48,14 +50,50 @@ interface CartItem {
 export default function POSPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const {
+    products: cachedProducts,
+    cacheReady,
+    cacheLoading,
+    cacheAge,
+    searchProducts,
+    fetchLiveProduct,
+    addProductToCache,
+    forceRefresh,
+  } = useProductCache(user?.id);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Sync cachedProducts into local products state
+  useEffect(() => {
+    if (cacheReady) {
+      setProducts(cachedProducts as Product[]);
+      setLoading(false);
+    }
+  }, [cacheReady, cachedProducts]);
+
+  // Debounced search against cache (local-first, server fallback)
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setSearchLoading(true);
+      const hits = await searchProducts(searchQuery);
+      setSearchResults(hits as Product[]);
+      setSearchLoading(false);
+    }, 150);
+    return () => clearTimeout(t);
+  }, [searchQuery, searchProducts]);
 
   // Mobile drawer state
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
@@ -95,26 +133,17 @@ export default function POSPage() {
 
   const fetchData = async () => {
     try {
-      setLoading(true);
-      const [prodRes, catRes, custRes] = await Promise.all([
-        fetch('/api/products'),
+      const [catRes, custRes] = await Promise.all([
         fetch('/api/categories'),
         fetch('/api/customers?type=RETAIL'),
       ]);
-      const prodData = await prodRes.json();
       const catData = await catRes.json();
       const custData = await custRes.json();
-
-      setProducts(prodData.products || []);
       setCategories(catData.categories || []);
       setCustomers(custData.customers || []);
-      if (custData.customers?.length > 0) {
-        setSelectedCustomer(custData.customers[0]); // default to walk-in
-      }
+      if (custData.customers?.length > 0) setSelectedCustomer(custData.customers[0]);
     } catch (err) {
       console.error('POS fetch error:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -122,16 +151,12 @@ export default function POSPage() {
     fetchData();
   }, []);
 
-  // Filter products
-  const filteredProducts = products.filter((p) => {
-    const matchesCategory =
-      selectedCategory === 'ALL' || p.category_code === selectedCategory;
-    const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.barcode && p.barcode.includes(searchQuery));
-    return matchesCategory && matchesSearch;
-  });
+  // Filter products — use searchResults when query active, else full cached list
+  const displayProducts = searchQuery.trim()
+    ? searchResults
+    : products.filter((p) =>
+        selectedCategory === 'ALL' || p.category_code === selectedCategory
+      );
 
   // Open Quick Add Product Modal directly from billing
   const openQuickAddModal = (initialSearchOrBarcode = '') => {
@@ -194,8 +219,10 @@ export default function POSPage() {
         unit: data.product.unit || 'pcs',
         category_name: data.product.category_name || '',
         category_code: data.product.category_code || '',
+        image_url: data.product.image_url || null,
       };
 
+      addProductToCache(data.product);
       setProducts((prev) => [newProd, ...prev]);
       addToCart(newProd);
       setSearchQuery('');
@@ -236,19 +263,29 @@ export default function POSPage() {
     }
   };
 
-  // Add to cart - allows sale even when stock is 0 or negative
-  const addToCart = (product: Product) => {
+  // Add to cart — fetch live price+stock first, then add
+  const addToCart = async (product: Product) => {
+    // Optimistically add from cache first for instant UI response
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
         return prev.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+          item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
       return [...prev, { product, quantity: 1, discount: 0 }];
     });
+    // Then silently refresh price+stock in background
+    const live = await fetchLiveProduct(product.id);
+    if (live) {
+      setCart((prev) =>
+        prev.map((item) =>
+          item.product.id === live.id
+            ? { ...item, product: live as Product }
+            : item
+        )
+      );
+    }
   };
 
   // Update quantity - allows unrestricted quantities even exceeding stock
@@ -367,12 +404,12 @@ export default function POSPage() {
         })),
       });
 
-      // Reset cart and refresh product stock in memory
+      // Reset cart and refresh product stock in cache
       setCart([]);
       setCheckoutModalOpen(false);
       setMobileCartOpen(false);
       setReceiptModalOpen(true);
-      fetchData();
+      forceRefresh(); // refresh cache after sale to get updated stock
     } catch (err: any) {
       toast(err.message, 'error');
     } finally {
@@ -399,11 +436,11 @@ export default function POSPage() {
               onKeyDown={handleSearchKeyDown}
               className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
             />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
+            {searchLoading && (
+              <RefreshCw className="w-3.5 h-3.5 text-emerald-500 animate-spin absolute right-2.5 top-1/2 -translate-y-1/2" />
+            )}
+            {searchQuery && !searchLoading && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                 <X className="w-4 h-4" />
               </button>
             )}
@@ -430,6 +467,19 @@ export default function POSPage() {
             />
           </div>
         </div>
+
+        {/* Cache status bar */}
+        {cacheReady && (
+          <div className="flex items-center justify-between px-1 pb-1">
+            <span className="text-[10px] text-slate-400">
+              {cacheLoading ? 'Refreshing catalogue...' : `${products.length} products cached${cacheAge ? ` · ${cacheAge.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}`}
+            </span>
+            <button onClick={forceRefresh} disabled={cacheLoading}
+              className="text-[10px] text-emerald-600 hover:text-emerald-700 font-semibold disabled:opacity-40 flex items-center gap-1">
+              <RefreshCw className={`w-3 h-3 ${cacheLoading ? 'animate-spin' : ''}`} /> Refresh
+            </button>
+          </div>
+        )}
 
         {/* Category Pills */}
         <div className="flex items-center gap-1.5 py-3 overflow-x-auto no-scrollbar shrink-0">
@@ -465,7 +515,7 @@ export default function POSPage() {
               <RefreshCw className="w-5 h-5 animate-spin mr-2 text-emerald-600" />
               Loading produce catalogue...
             </div>
-          ) : filteredProducts.length === 0 ? (
+          ) : displayProducts.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs py-12">
               <AlertCircle className="w-8 h-8 mb-2 text-slate-300" />
               <span>No produce found matching &ldquo;{searchQuery}&rdquo;</span>
@@ -481,7 +531,7 @@ export default function POSPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 pb-20 lg:pb-6">
-              {filteredProducts.map((p) => {
+              {displayProducts.map((p) => {
                 const inCart = cart.find((item) => item.product.id === p.id);
                 const isOutOfStock = p.stock_quantity <= 0;
 
@@ -502,6 +552,15 @@ export default function POSPage() {
                         {inCart.quantity}
                       </span>
                     )}
+
+                    {/* Product image or placeholder */}
+                    {(p as any).image_url ? (
+                      <img
+                        src={(p as any).image_url}
+                        alt={p.name}
+                        className="w-full h-20 object-cover rounded-lg mb-2 border border-slate-100"
+                      />
+                    ) : null}
 
                     <div>
                       <div className="flex items-center justify-between text-[10px] uppercase font-bold text-slate-400 tracking-wider">
@@ -814,56 +873,84 @@ export default function POSPage() {
 
               {/* Cash Tendering & Quick Denominations in GBP (£) */}
               {paymentMethod === 'CASH' && (
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 block mb-1">
-                    Amount Received (£)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={amountReceived}
-                    onChange={(e) => setAmountReceived(e.target.value)}
-                    className="w-full py-2 px-3 text-lg font-bold font-mono text-slate-900 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 block mb-1">
+                      Amount Received (£)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={amountReceived}
+                      onChange={(e) => setAmountReceived(e.target.value)}
+                      className="w-full py-2.5 px-3 text-2xl font-black font-mono text-slate-900 border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-400 text-center tracking-wider"
+                      placeholder="0.00"
+                    />
+                  </div>
 
                   {/* UK Denomination Pills */}
-                  <div className="flex gap-1.5 mt-2 flex-wrap">
+                  <div className="flex gap-1.5 flex-wrap">
                     <button
+                      type="button"
                       onClick={() => setAmountReceived(grandTotal.toString())}
-                      className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded font-semibold text-slate-700"
+                      className="px-2.5 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold"
                     >
                       Exact
                     </button>
                     {[5, 10, 20, 50, 100].map((val) => (
                       <button
+                        type="button"
                         key={val}
                         onClick={() => setAmountReceived(val.toString())}
-                        className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 rounded font-bold text-slate-700"
+                        className="px-2.5 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 rounded-lg font-bold text-slate-700 border border-slate-200"
                       >
                         £{val}
                       </button>
                     ))}
                   </div>
 
-                  {/* Live Change / Balance Calculation */}
-                  <div className="mt-3 p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex justify-between items-center text-xs">
-                    {(Number(amountReceived) || 0) < grandTotal ? (
-                      <>
-                        <span className="font-semibold text-slate-600">Balance Owed:</span>
-                        <span className="text-base font-extrabold font-mono text-amber-600">
-                          £{(grandTotal - (Number(amountReceived) || 0)).toFixed(2)}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-semibold text-slate-600">Change Due:</span>
-                        <span className="text-base font-extrabold font-mono text-emerald-600">
-                          £{changeDue.toFixed(2)}
-                        </span>
-                      </>
-                    )}
-                  </div>
+                  {/* Live Change / Balance Display */}
+                  {(() => {
+                    const received = Number(amountReceived) || 0;
+                    const diff = received - grandTotal;
+                    if (received === 0) return null;
+                    if (diff < 0) {
+                      // Underpaid
+                      return (
+                        <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-3">
+                          <div className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">Still Owed</div>
+                          <div className="text-3xl font-black font-mono text-amber-600 text-center">
+                            £{Math.abs(diff).toFixed(2)}
+                          </div>
+                          <div className="text-[10px] text-amber-600 text-center mt-1 font-semibold">
+                            Customer needs to pay £{Math.abs(diff).toFixed(2)} more
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (diff === 0) {
+                      return (
+                        <div className="rounded-xl border-2 border-emerald-300 bg-emerald-50 p-3 flex items-center justify-center gap-2">
+                          <CheckCircle className="w-5 h-5 text-emerald-600" />
+                          <span className="font-black text-emerald-700 text-sm">Exact Amount — No Change</span>
+                        </div>
+                      );
+                    }
+                    // Overpaid — show change to return
+                    return (
+                      <div className="rounded-xl border-2 border-emerald-400 bg-gradient-to-br from-emerald-500 to-green-600 p-4 shadow-lg shadow-emerald-500/30">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-emerald-100 mb-1 text-center">Change to Return</div>
+                        <div className="text-5xl font-black font-mono text-white text-center drop-shadow-sm">
+                          £{diff.toFixed(2)}
+                        </div>
+                        <div className="flex justify-between text-[11px] text-emerald-100 mt-3 font-semibold border-t border-emerald-400/50 pt-2">
+                          <span>Total: £{grandTotal.toFixed(2)}</span>
+                          <span>Received: £{received.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 

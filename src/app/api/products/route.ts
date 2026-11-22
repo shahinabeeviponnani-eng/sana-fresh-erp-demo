@@ -55,10 +55,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Access Denied' }, { status: 403 });
 
     const { sku, barcode, name, description, category_id, cost_price, retail_price,
-      wholesale_price, min_wholesale_qty, stock_quantity, reorder_level, unit } = await req.json();
+      wholesale_price, retail_margin_percent, wholesale_margin_percent, min_wholesale_qty, stock_quantity, reorder_level, unit, image_url } = await req.json();
 
-    if (!name || retail_price === undefined)
-      return NextResponse.json({ error: 'Product name and Retail Price are required' }, { status: 400 });
+    if (!name || (retail_price === undefined && retail_margin_percent === undefined))
+      return NextResponse.json({ error: 'Product name and Retail Price (or Retail Margin %) are required' }, { status: 400 });
 
     const cleanBarcode = barcode && typeof barcode === 'string' && barcode.trim() ? barcode.trim() : null;
     if (cleanBarcode) {
@@ -86,19 +86,41 @@ export async function POST(req: NextRequest) {
 
     const initStock = Number(stock_quantity) || 0;
     const costPriceNum = Number(cost_price) || 0;
-    const retailPriceNum = Number(retail_price) || 0;
-    const wholesalePriceNum = wholesale_price !== undefined && wholesale_price !== ''
-      ? Number(wholesale_price)
-      : Number((retailPriceNum * 0.8).toFixed(2));
+    let retMarginNum = retail_margin_percent !== undefined && retail_margin_percent !== '' ? Number(retail_margin_percent) : NaN;
+    let wsMarginNum = wholesale_margin_percent !== undefined && wholesale_margin_percent !== '' ? Number(wholesale_margin_percent) : NaN;
+
+    let retailPriceNum = Number(retail_price);
+    if ((isNaN(retailPriceNum) || retailPriceNum <= 0) && costPriceNum > 0 && !isNaN(retMarginNum) && retMarginNum > 0) {
+      retailPriceNum = Number((costPriceNum * (1 + retMarginNum / 100)).toFixed(2));
+    } else if (isNaN(retailPriceNum)) {
+      retailPriceNum = 0;
+    }
+
+    if ((isNaN(retMarginNum) || retMarginNum === 0) && costPriceNum > 0 && retailPriceNum > 0) {
+      retMarginNum = Number((((retailPriceNum - costPriceNum) / costPriceNum) * 100).toFixed(2));
+    }
+    if (isNaN(retMarginNum)) retMarginNum = 0;
+
+    let wholesalePriceNum = wholesale_price !== undefined && wholesale_price !== '' ? Number(wholesale_price) : NaN;
+    if ((isNaN(wholesalePriceNum) || wholesalePriceNum <= 0) && costPriceNum > 0 && !isNaN(wsMarginNum) && wsMarginNum > 0) {
+      wholesalePriceNum = Number((costPriceNum * (1 + wsMarginNum / 100)).toFixed(2));
+    } else if (isNaN(wholesalePriceNum)) {
+      wholesalePriceNum = Number((retailPriceNum * 0.8).toFixed(2));
+    }
+
+    if ((isNaN(wsMarginNum) || wsMarginNum === 0) && costPriceNum > 0 && wholesalePriceNum > 0) {
+      wsMarginNum = Number((((wholesalePriceNum - costPriceNum) / costPriceNum) * 100).toFixed(2));
+    }
+    if (isNaN(wsMarginNum)) wsMarginNum = 0;
 
     const id = await insertReturningId(
       `INSERT INTO products (sku, barcode, name, description, category_id, cost_price, retail_price,
-        wholesale_price, min_wholesale_qty, stock_quantity, reorder_level, unit)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        wholesale_price, retail_margin_percent, wholesale_margin_percent, min_wholesale_qty, stock_quantity, reorder_level, unit, image_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [finalSku, cleanBarcode, name.trim(), description || '',
        category_id || null, costPriceNum, retailPriceNum,
-       wholesalePriceNum, Number(min_wholesale_qty) || 10,
-       initStock, Number(reorder_level) || 15, unit || 'pcs']
+       wholesalePriceNum, retMarginNum, wsMarginNum, Number(min_wholesale_qty) || 10,
+       initStock, Number(reorder_level) || 15, unit || 'pcs', image_url || null]
     );
 
     if (initStock > 0) {
@@ -134,7 +156,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Access Denied' }, { status: 403 });
 
     const { id, sku, barcode, name, description, category_id, cost_price, retail_price,
-      wholesale_price, min_wholesale_qty, reorder_level, unit } = await req.json();
+      wholesale_price, retail_margin_percent, wholesale_margin_percent, min_wholesale_qty, reorder_level, unit, image_url } = await req.json();
 
     if (!id) return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
 
@@ -143,13 +165,30 @@ export async function PUT(req: NextRequest) {
       if (dup) return NextResponse.json({ error: 'A product with this barcode already exists.' }, { status: 409 });
     }
 
+    const costNum = Number(cost_price) || 0;
+    let retPriceNum = Number(retail_price) || 0;
+    let retMarginNum = retail_margin_percent !== undefined && retail_margin_percent !== '' ? Number(retail_margin_percent) : 0;
+    if (retMarginNum > 0 && costNum > 0 && (!retPriceNum || retPriceNum <= 0)) {
+      retPriceNum = Number((costNum * (1 + retMarginNum / 100)).toFixed(2));
+    } else if (retMarginNum === 0 && costNum > 0 && retPriceNum > 0) {
+      retMarginNum = Number((((retPriceNum - costNum) / costNum) * 100).toFixed(2));
+    }
+
+    let wsPriceNum = Number(wholesale_price) || 0;
+    let wsMarginNum = wholesale_margin_percent !== undefined && wholesale_margin_percent !== '' ? Number(wholesale_margin_percent) : 0;
+    if (wsMarginNum > 0 && costNum > 0 && (!wsPriceNum || wsPriceNum <= 0)) {
+      wsPriceNum = Number((costNum * (1 + wsMarginNum / 100)).toFixed(2));
+    } else if (wsMarginNum === 0 && costNum > 0 && wsPriceNum > 0) {
+      wsMarginNum = Number((((wsPriceNum - costNum) / costNum) * 100).toFixed(2));
+    }
+
     await execute(
       `UPDATE products SET sku=?, barcode=?, name=?, description=?, category_id=?, cost_price=?,
-       retail_price=?, wholesale_price=?, min_wholesale_qty=?, reorder_level=?, unit=?,
-       updated_at=datetime('now') WHERE id=?`,
+       retail_price=?, wholesale_price=?, retail_margin_percent=?, wholesale_margin_percent=?,
+       min_wholesale_qty=?, reorder_level=?, unit=?, image_url=?, updated_at=datetime('now') WHERE id=?`,
       [sku.toUpperCase().trim(), barcode || null, name.trim(), description || '',
-       category_id || null, Number(cost_price), Number(retail_price), Number(wholesale_price),
-       Number(min_wholesale_qty), Number(reorder_level), unit, id]
+       category_id || null, costNum, retPriceNum, wsPriceNum, retMarginNum, wsMarginNum,
+       Number(min_wholesale_qty), Number(reorder_level), unit, image_url || null, id]
     );
 
     const product = await queryOne(`SELECT p.*, c.name AS category_name FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = ?`, [id]);

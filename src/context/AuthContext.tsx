@@ -99,6 +99,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     await fetch('/api/auth/me', { method: 'POST' });
+    // Clear product cache for this user
+    if (cachedUser?.id) {
+      try { localStorage.removeItem(`sf_products_cache_${cachedUser.id}`); } catch {}
+    }
     cachedUser = null;
     sessionChecked = false;
     setUser(null);

@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS products (
   cost_price REAL NOT NULL DEFAULT 0,
   retail_price REAL NOT NULL DEFAULT 0,
   wholesale_price REAL NOT NULL DEFAULT 0,
+  retail_margin_percent REAL DEFAULT 0,
+  wholesale_margin_percent REAL DEFAULT 0,
   min_wholesale_qty REAL NOT NULL DEFAULT 1,
   stock_quantity REAL NOT NULL DEFAULT 0,
   reorder_level REAL NOT NULL DEFAULT 15,

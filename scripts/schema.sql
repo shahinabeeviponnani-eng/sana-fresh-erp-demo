@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS products (
     cost_price NUMERIC(12, 3) NOT NULL DEFAULT 0.000,
     retail_price NUMERIC(12, 3) NOT NULL DEFAULT 0.000,
     wholesale_price NUMERIC(12, 3) NOT NULL DEFAULT 0.000,
+    retail_margin_percent NUMERIC(8, 2) DEFAULT 0.00,
+    wholesale_margin_percent NUMERIC(8, 2) DEFAULT 0.00,
     min_wholesale_qty NUMERIC(12, 2) NOT NULL DEFAULT 1.00,
     stock_quantity NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
     reorder_level NUMERIC(12, 2) NOT NULL DEFAULT 15.00,

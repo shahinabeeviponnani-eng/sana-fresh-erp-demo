@@ -14,6 +14,8 @@
     "cf:build": "npx @cloudflare/next-on-pages",
     "cf:d1:local:schema": "wrangler d1 execute sana-fresh-erp-db --local --file=scripts/schema-d1.sql",
     "cf:d1:local:seed": "wrangler d1 execute sana-fresh-erp-db --local --file=scripts/seed-d1.sql",
+    "cf:d1:migrate": "wrangler d1 execute sana-fresh-erp-db --file=scripts/migrate-001.sql",
+    "cf:d1:migrate:local": "wrangler d1 execute sana-fresh-erp-db --local --file=scripts/migrate-001.sql",
     "cf:d1:create": "wrangler d1 create sana-fresh-erp-db",
     "cf:d1:schema": "wrangler d1 execute sana-fresh-erp-db --file=scripts/schema-d1.sql",
     "cf:d1:seed": "wrangler d1 execute sana-fresh-erp-db --file=scripts/seed-d1.sql",

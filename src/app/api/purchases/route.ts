@@ -195,14 +195,35 @@ export async function PUT(req: NextRequest) {
           [poId, it.productId, it.quantity, qtyReceived, Number(it.unitCost), lineCost]);
 
         if (isReceived) {
-          const prod = await queryOne(`SELECT stock_quantity FROM products WHERE id=?`, [it.productId]);
+          const prod = await queryOne(
+            `SELECT stock_quantity, cost_price, retail_price, wholesale_price, retail_margin_percent, wholesale_margin_percent FROM products WHERE id=?`,
+            [it.productId]
+          );
           const curStock = Number(prod?.stock_quantity || 0);
           const newStock = curStock + Number(it.quantity);
           const batchNumber = `BATCH-${new Date().toISOString().slice(0,10).replace(/-/g,'')}P${it.productId}-${Math.floor(Math.random()*9000)+1000}`;
+
+          const newCostPrice = Number(it.unitCost);
+          let newRetailPrice = Number(prod?.retail_price || 0);
+          let newWholesalePrice = Number(prod?.wholesale_price || 0);
+
+          if (newCostPrice > 0) {
+            const retMargin = Number(prod?.retail_margin_percent || 0);
+            const wsMargin = Number(prod?.wholesale_margin_percent || 0);
+
+            if (retMargin > 0) {
+              newRetailPrice = Number((newCostPrice * (1 + retMargin / 100)).toFixed(2));
+            }
+            if (wsMargin > 0) {
+              newWholesalePrice = Number((newCostPrice * (1 + wsMargin / 100)).toFixed(2));
+            }
+          }
+
           await db.batch([
             db.prepare(`INSERT INTO stock_batches (product_id, batch_number, po_number, vendor_id, quantity_received, quantity_remaining, unit_cost, received_at, created_by) VALUES (?,?,?,?,?,?,?,datetime('now'),?)`)
-              .bind(it.productId, batchNumber, po.po_number, po.vendor_id, Number(it.quantity), Number(it.quantity), Number(it.unitCost), session.id),
-            db.prepare(`UPDATE products SET stock_quantity=?, cost_price=?, updated_at=datetime('now') WHERE id=?`).bind(newStock, Number(it.unitCost), it.productId),
+              .bind(it.productId, batchNumber, po.po_number, po.vendor_id, Number(it.quantity), Number(it.quantity), newCostPrice, session.id),
+            db.prepare(`UPDATE products SET stock_quantity=?, cost_price=?, retail_price=?, wholesale_price=?, updated_at=datetime('now') WHERE id=?`)
+              .bind(newStock, newCostPrice, newRetailPrice, newWholesalePrice, it.productId),
             db.prepare(`INSERT INTO stock_movements (product_id, type, quantity, previous_stock, new_stock, reference_id, staff_id, reason) VALUES (?,'PURCHASE_RECEIVE',?,?,?,?,?,?)`)
               .bind(it.productId, Number(it.quantity), curStock, newStock, po.po_number, session.id, `PO ${po.po_number} edited & stock synced`),
           ]);
@@ -310,18 +331,39 @@ export async function PATCH(req: NextRequest) {
       }
 
       if (qtyToReceive > 0) {
-        const curStock = Number(it.stock_quantity || 0);
+        const prod = await queryOne(
+          `SELECT stock_quantity, cost_price, retail_price, wholesale_price, retail_margin_percent, wholesale_margin_percent FROM products WHERE id=?`,
+          [it.product_id]
+        );
+        const curStock = Number(prod?.stock_quantity || 0);
         const newStock = curStock + qtyToReceive;
         const newTotalReceived = Number(it.quantity_received || 0) + qtyToReceive;
         const batchNumber = `BATCH-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}P${it.product_id}-${Math.floor(Math.random() * 9000) + 1000}`;
 
+        const newCostPrice = Number(it.unit_cost);
+        let newRetailPrice = Number(prod?.retail_price || 0);
+        let newWholesalePrice = Number(prod?.wholesale_price || 0);
+
+        if (newCostPrice > 0) {
+          const retMargin = Number(prod?.retail_margin_percent || 0);
+          const wsMargin = Number(prod?.wholesale_margin_percent || 0);
+
+          if (retMargin > 0) {
+            newRetailPrice = Number((newCostPrice * (1 + retMargin / 100)).toFixed(2));
+          }
+          if (wsMargin > 0) {
+            newWholesalePrice = Number((newCostPrice * (1 + wsMargin / 100)).toFixed(2));
+          }
+        }
+
         await db.batch([
           db.prepare(`INSERT INTO stock_batches (product_id, batch_number, po_number, vendor_id, quantity_received, quantity_remaining, unit_cost, received_at, created_by) VALUES (?,?,?,?,?,?,?,datetime('now'),?)`)
-            .bind(it.product_id, batchNumber, po.po_number, po.vendor_id, qtyToReceive, qtyToReceive, it.unit_cost, session?.id || 1),
-          db.prepare(`UPDATE products SET stock_quantity=?, cost_price=?, updated_at=datetime('now') WHERE id=?`).bind(newStock, it.unit_cost, it.product_id),
+            .bind(it.product_id, batchNumber, po.po_number, po.vendor_id, qtyToReceive, qtyToReceive, newCostPrice, session?.id || 1),
+          db.prepare(`UPDATE products SET stock_quantity=?, cost_price=?, retail_price=?, wholesale_price=?, updated_at=datetime('now') WHERE id=?`)
+            .bind(newStock, newCostPrice, newRetailPrice, newWholesalePrice, it.product_id),
           db.prepare(`UPDATE purchase_order_items SET quantity_received=? WHERE id=?`).bind(newTotalReceived, it.id),
           db.prepare(`INSERT INTO stock_movements (product_id, type, quantity, previous_stock, new_stock, reference_id, staff_id, reason) VALUES (?,'PURCHASE_RECEIVE',?,?,?,?,?,?)`)
-            .bind(it.product_id, qtyToReceive, curStock, newStock, po.po_number, session?.id || 1, `Batch ${batchNumber} received (${qtyToReceive} units) from ${po.vendor_name}`),
+            .bind(it.product_id, qtyToReceive, curStock, newStock, po.po_number, session?.id || 1, `Batch ${batchNumber} received (${qtyToReceive} units) from ${po.vendor_name} @ £${newCostPrice.toFixed(2)} (Auto-updated Retail: £${newRetailPrice.toFixed(2)}, Wholesale: £${newWholesalePrice.toFixed(2)})`),
         ]);
       }
     }
