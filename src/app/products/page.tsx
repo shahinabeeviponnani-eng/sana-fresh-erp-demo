@@ -234,18 +234,6 @@ export default function ProductsPage() {
     fetchData();
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast('Image must be under 2MB', 'error');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => setProductImage(reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
   const openCreateModal = () => {
     setEditingProduct(null);
     setProductImage('');

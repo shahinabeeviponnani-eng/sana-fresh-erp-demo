@@ -77,8 +77,27 @@ export default function POSPage() {
     if (cacheReady) {
       setProducts(cachedProducts as Product[]);
       setLoading(false);
+    } else if (!user?.id) {
+      // Auth not ready yet — keep waiting
+      setLoading(true);
     }
-  }, [cacheReady, cachedProducts]);
+  }, [cacheReady, cachedProducts, user?.id]);
+
+  // Fallback: if user is loaded but cache never becomes ready after 8s, fetch directly
+  useEffect(() => {
+    if (!user?.id) return;
+    const t = setTimeout(async () => {
+      if (loading) {
+        try {
+          const res = await fetch('/api/products');
+          const data = await res.json();
+          setProducts(data.products || []);
+        } catch {}
+        setLoading(false);
+      }
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [user?.id]);
 
   // Debounced search against cache (local-first, server fallback)
   useEffect(() => {
