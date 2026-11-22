@@ -727,41 +727,87 @@ export default function ProductsPage() {
                   Dual Pricing Tiers & Margins
                 </span>
 
-                <div className="grid grid-cols-3 gap-2">
+                {/* Row 1: Cost Price */}
+                <div className="grid grid-cols-1 gap-2">
                   <div>
-                    <label className="font-semibold text-slate-600 block mb-1">Cost Price (£)</label>
+                    <label className="font-semibold text-slate-600 block mb-1">Cost Price (₹)</label>
                     <input
                       type="number"
                       step="0.01"
                       required
                       value={formData.cost_price}
-                      onChange={(e) => setFormData({ ...formData, cost_price: e.target.value })}
+                      onChange={(e) => handleCostPriceChange(e.target.value)}
                       className="w-full py-1.5 px-2 border border-slate-300 rounded text-right font-mono"
+                      placeholder="0.00"
                     />
                   </div>
+                </div>
+
+                {/* Row 2: Retail — Margin % + Price */}
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="font-semibold text-emerald-700 block mb-1">Retail Price (£)</label>
+                    <label className="font-semibold text-emerald-700 block mb-1">Retail Margin %</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={formData.retail_margin_percent}
+                        onChange={(e) => handleRetailMarginChange(e.target.value)}
+                        className="w-full py-1.5 px-2 pr-7 border border-emerald-300 rounded text-right font-mono text-emerald-700"
+                        placeholder="30"
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-sm pointer-events-none">%</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="font-semibold text-emerald-700 block mb-1">Retail Price (₹)</label>
                     <input
                       type="number"
                       step="0.01"
                       required
                       value={formData.retail_price}
-                      onChange={(e) => setFormData({ ...formData, retail_price: e.target.value })}
-                      className="w-full py-1.5 px-2 border border-emerald-300 rounded text-right font-mono font-bold text-emerald-700"
+                      onChange={(e) => handleRetailPriceChange(e.target.value)}
+                      className="w-full py-1.5 px-2 border border-emerald-400 rounded text-right font-mono font-bold text-emerald-700"
+                      placeholder="0.00"
                     />
                   </div>
+                </div>
+
+                {/* Row 3: Wholesale — Margin % + Price */}
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="font-semibold text-indigo-700 block mb-1">Wholesale (£)</label>
+                    <label className="font-semibold text-indigo-700 block mb-1">Wholesale Margin %</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={formData.wholesale_margin_percent}
+                        onChange={(e) => handleWholesaleMarginChange(e.target.value)}
+                        className="w-full py-1.5 px-2 pr-7 border border-indigo-300 rounded text-right font-mono text-indigo-700"
+                        placeholder="15"
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-indigo-600 font-bold text-sm pointer-events-none">%</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="font-semibold text-indigo-700 block mb-1">Wholesale Price (₹)</label>
                     <input
                       type="number"
                       step="0.01"
                       required
                       value={formData.wholesale_price}
-                      onChange={(e) => setFormData({ ...formData, wholesale_price: e.target.value })}
-                      className="w-full py-1.5 px-2 border border-indigo-300 rounded text-right font-mono font-bold text-indigo-700"
+                      onChange={(e) => handleWholesalePriceChange(e.target.value)}
+                      className="w-full py-1.5 px-2 border border-indigo-400 rounded text-right font-mono font-bold text-indigo-700"
+                      placeholder="0.00"
                     />
                   </div>
                 </div>
+
+                <p className="text-[10px] text-slate-500 italic">
+                  💡 Margin % set cheyyumbol price auto-calculate aakunnu. New stock receive cheyyumbol cost price-inu anusarichu retail &amp; wholesale price auto-update aakunnu.
+                </p>
 
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   <div>
